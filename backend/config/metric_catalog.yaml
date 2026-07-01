@@ -1,0 +1,382 @@
+# =============================================================================
+# !!! IMPORTANT: COLD-START SEED FILE ONLY — NOT THE SOURCE OF TRUTH !!!
+# =============================================================================
+# This YAML file is used ONLY for the initial database seeding on first start.
+# The REAL, LIVE configuration is stored in the DATABASE (config_* tables) and
+# is managed via the Admin UI or the config API.
+#
+# ANY CHANGES TO THIS FILE AFTER THE FIRST INITIALIZATION WILL BE IGNORED.
+# The system reads exclusively from the DB — this file is never re-read.
+#
+# To update configuration after initialization:
+#   Admin UI  →  Config section
+#   API       →  await set_config(domain, data)
+#                in src/config/config_service.py
+# =============================================================================
+
+# metrics/metric_catalog.yaml
+# Mapping of logical metric keys -> actual Prometheus metric names + metadata
+hana_cpu_utilisation:
+  prometheus_name: hana_cpu_utilization_percent
+  metric_type: gauge
+  description: Provides the current CPU utilization for the HANA Database. Non-persistent values below 10% or above 70% warrant investigation. This suggests a potential system bottleneck.
+  category: hana_db_resource_usage
+  recommended_operations: resource_usage
+  unit: '%'
+hana_disc_utilisation:
+  prometheus_name: hana_disc_utilization_percent
+  metric_type: gauge
+  description: HANA Database Live Disk Usage.
+  category: hana_db_resource_usage
+  recommended_operations: resource_usage
+  unit: '%'
+hana_memory_utilisation:
+  prometheus_name: hana_memory_utilization_percent
+  metric_type: gauge
+  description: HANA Database memory usage
+  category: hana_db_resource_usage
+  recommended_operations: resource_usage
+  unit: '%'
+sap_application_abap_shortdumps_frequency:
+  prometheus_name: sap_application_abap_shortdumps_frequency_per_min
+  metric_type: gauge
+  description: Frequency of ABAP short dumps. Normally should be 0 or low; frequent dumps harm system stability.
+  category: error_and_warnings
+  alert_threshold: '5'
+  unit: /min
+sap_application_ale_idoc_mt_att_class:
+  prometheus_name: sap_application_ale_idoc_mt_att_class_ratio
+  metric_type: gauge
+  description: ALE IDoc message type connection class. Should be within the expected range; issues may occur in IDoc transfer.
+  category: integration_and_data_transfer
+  alert_threshold: '10'
+  unit: '-'
+sap_application_ale_trfc_class:
+  prometheus_name: sap_application_ale_trfc_class_ratio
+  metric_type: gauge
+  description: ALE tRFC connection class. Should be within the expected range; problems may occur in tRFC processes.
+  category: integration_and_data_transfer
+  alert_threshold: '10'
+  unit: '-'
+sap_application_bgrfc_inbound_throughput_actual:
+  prometheus_name: sap_application_bgrfc_inbound_throughput_actual_per_hour
+  metric_type: gauge
+  description: bgRFC inbound actual processing rate. Should meet expected throughput; workload may be delayed.
+  category: integration_and_data_transfer
+  alert_threshold: '-'
+  unit: '/h'
+sap_application_bgrfc_inbound_throughput_average:
+  prometheus_name: sap_application_bgrfc_inbound_throughput_average_per_hour
+  metric_type: gauge
+  description: bgRFC inbound average processing rate. Should meet expected throughput; workload may be delayed.
+  category: integration_and_data_transfer
+  alert_threshold: '-'
+  unit: '/h'
+sap_application_bgrfc_outbound_throughput_actual:
+  prometheus_name: sap_application_bgrfc_outbound_throughput_actual_per_hour
+  metric_type: gauge
+  description: bgRFC outbound actual processing rate. Should meet expected throughput; delays may occur when sending data to external systems.
+  category: integration_and_data_transfer
+  alert_threshold: '-'
+  unit: '/h'
+sap_application_bgrfc_outbound_throughput_average:
+  prometheus_name: sap_application_bgrfc_outbound_throughput_average_per_hour
+  metric_type: gauge
+  description: bgRFC outbound average processing rate. Should meet expected throughput; delays may occur when sending data to external systems.
+  category: integration_and_data_transfer
+  alert_threshold: '-'
+  unit: '/h'
+sap_application_background_wp_ended:
+  category: error_and_warnings
+  description: The number of background work processes that terminated in an error state (i.e., failed). This value should ideally be 0. A count greater than zero indicates a critical issue where background tasks are failing to complete.
+  prometheus_name: sap_application_background_wp_ended_ratio
+  metric_type: gauge
+  alert_threshold: '1'
+  unit: '-'
+sap_application_background_wp_error_frequency:
+  prometheus_name: sap_application_background_wp_error_frequency_per_min
+  metric_type: gauge
+  description: Frequency of background work process errors. Should be 0 or low; increasing errors reduce performance.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: /min
+sap_application_background_wp_errors:
+  prometheus_name: sap_application_background_wp_errors_ratio
+  metric_type: gauge
+  description: Number of background work process errors. Should be 0; background jobs are disrupted.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_background_wp_utilisation:
+  prometheus_name: sap_application_background_wp_utilisation_percent
+  metric_type: gauge
+  description: Background work process utilization rate. Normally below 50%; high usage extends job queues.
+  category: sap_resource_usage
+  alert_threshold: '50'
+  unit: percent
+sap_application_cpu_utilisation:
+  prometheus_name: sap_application_cpu_utilisation_percent
+  metric_type: gauge
+  description: SAP Application Server CPU utilization
+  recommended_operations: infrastructure_resource_usage
+  alert_threshold: '75'
+  unit: '%'
+sap_application_dialog_long_running_steps_total:
+  prometheus_name: sap_application_dialog_long_running_steps_total
+  metric_type: gauge
+  description: Long-running dialog tasks. Normally 0 or few; long dialog tasks slow the system.
+  category: Performance & Response Time
+  alert_threshold: '0'
+  unit: '-'
+sap_application_dialog_response_time_average_seconds:
+  prometheus_name: sap_application_dialog_response_time_average_seconds
+  metric_type: gauge
+  description: Average dialog response time. Normally <1 second; slow times degrade user experience.
+  category: Performance & Response Time
+  alert_threshold: '1'
+  unit: seconds
+sap_application_dialog_rfc_response_time_average_seconds:
+  prometheus_name: sap_application_dialog_rfc_response_time_average_seconds
+  metric_type: gauge
+  description: RFC-based dialog response time. Normally <1 second; delays occur in RFC calls.
+  category: Performance & Response Time
+  alert_threshold: '1'
+  unit: seconds
+sap_application_dialog_steps:
+  prometheus_name: sap_application_dialog_steps_per_min
+  metric_type: gauge
+  description: Number of dialog steps (user actions). Should match expected workload; increased user load reduces performance.
+  category: sap_resource_usage
+  alert_threshold: '2000'
+  unit: '-'
+sap_application_dialog_wp_priv_utilisation:
+  prometheus_name: sap_application_dialog_wp_priv_utilisation_percent
+  metric_type: gauge
+  description: Ratio of dialog work processes used in private mode. Should be low; high private WP usage strains resources.
+  category: sap_resource_usage
+  alert_threshold: '1'
+  unit: '%'
+sap_application_dialog_wp_ended:
+  prometheus_name: sap_application_dialog_wp_ended_ratio
+  metric_type: gauge
+  description: Number of dialog work processes ending in error. Should be 0; dialog tasks cannot complete.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_dialog_wp_error_frequency:
+  prometheus_name: sap_application_dialog_wp_error_frequency_per_min
+  metric_type: gauge
+  description: Frequency of dialog work process errors. Should be 0 or low; errors harm system stability.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: /min
+sap_application_dialog_wp_utilisation:
+  prometheus_name: sap_application_dialog_wp_utilisation_percent
+  metric_type: gauge
+  description: Dialog work process utilization rate. Normally below 50%; high usage reduces system responsiveness.
+  category: sap_resource_usage
+  alert_threshold: '45'
+  unit: percent
+sap_application_gateway_clients:
+  prometheus_name: sap_application_gateway_clients_percent
+  metric_type: gauge
+  description: Number of clients connected through the Gateway. Should be within normal range; connection problems affect users.
+  category: sap_resource_usage
+  alert_threshold: '35'
+  unit: '-'
+sap_application_gateway_connections:
+  prometheus_name: sap_application_gateway_connections_percent
+  metric_type: gauge
+  description: Number of connections through the Gateway. Should be within normal range; connection problems affect users.
+  category: sap_resource_usage
+  alert_threshold: '15'
+  unit: '-'
+sap_application_icm_general_connections:
+  prometheus_name: sap_application_icm_connections_ratio
+  metric_type: gauge
+  description: Total ICM connection count. Should be within normal range; high counts may signal issues.
+  category: sap_resource_usage
+  alert_threshold: '-'
+  unit: '-'
+sap_application_icm_general_queue_length:
+  prometheus_name: sap_application_icm_general_queue_length_ratio
+  metric_type: gauge
+  description: ICM queue length. Normally 0 or low; increasing queue leads to processing delays.
+  category: sap_resource_usage
+  alert_threshold: '10'
+  unit: '-'
+sap_application_memory_es_active:
+  prometheus_name: sap_application_memory_es_active_percent
+  metric_type: gauge
+  description: Active extended memory usage. Should be sufficient; insufficient memory reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '75'
+  unit: percent
+sap_application_memory_es_recent_peak:
+  prometheus_name: sap_application_memory_es_recent_peak_percent
+  metric_type: gauge
+  description: Recent peak extended memory usage. Should be sufficient; insufficient memory reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '75'
+  unit: percent
+sap_application_memory_es_total_megabytes:
+  prometheus_name: sap_application_memory_es_total_megabytes
+  metric_type: gauge
+  description: Total extended memory size (MB). Should follow SAP recommendations; insufficient memory reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '-'
+  unit: megabytes
+sap_application_memory_extended_global_used:
+  prometheus_name: sap_application_memory_extended_global_used_percent
+  metric_type: gauge
+  description: Used extended global memory. Should follow SAP recommendations; insufficient memory reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '-'
+  unit: percent
+sap_application_memory_heap_active:
+  prometheus_name: sap_application_memory_heap_active_percent
+  metric_type: gauge
+  description: Active heap memory usage. Should follow SAP recommendations; memory pressure increases. Values below 70% are not critical.
+  category: infrastructure_resource_usage
+  alert_threshold: '20'
+  unit: percent
+sap_application_memory_heap_peak:
+  prometheus_name: sap_application_memory_heap_peak_percent
+  metric_type: gauge
+  description: Peak heap memory usage. Should follow SAP recommendations; memory pressure increases.
+  category: infrastructure_resource_usage
+  alert_threshold: '20'
+  unit: percent
+sap_application_memory_heap_total:
+  prometheus_name: sap_application_memory_heap_total_megabytes
+  metric_type: gauge
+  description: Total heap memory size. Should follow SAP recommendations; memory pressure increases.
+  category: infrastructure_resource_usage
+  alert_threshold:
+  unit: MB
+sap_application_memory_paging_used:
+  prometheus_name: sap_application_memory_paging_used_percent
+  metric_type: gauge
+  description: Amount of paging memory used. Should be minimal; increased paging slows the system.
+  category: infrastructure_resource_usage
+  alert_threshold: '40'
+  unit: percent
+sap_application_memory_wp_dia_restart:
+  prometheus_name: sap_application_memory_wp_dia_restart_ratio
+  metric_type: gauge
+  description: Number of dialog work process restarts. Should be 0 or low; frequent restarts harm stability and indicate errors.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_memory_wp_hold_count:
+  prometheus_name: sap_application_memory_wp_hold_count_ratio
+  metric_type: gauge
+  description: Number of work processes kept in memory. Should be low; poor memory management causes issues.
+  category: error_and_warnings
+  alert_threshold: '50'
+  unit: '-'
+sap_application_spool_wp_utilisation:
+  prometheus_name: sap_application_spool_wp_utilisation_percent
+  metric_type: gauge
+  description: Spool work process utilization rate. Normally <10%; high usage reduces spool performance.
+  category: sap_resource_usage
+  alert_threshold: '10'
+  unit: '-'
+sap_application_users_logged_in:
+  prometheus_name: sap_application_users_logged_in_ratio
+  metric_type: gauge
+  description: Number of logged-in users. Should match expected user count; too few may indicate a problem.
+  category: sap_resource_usage
+  alert_threshold: '600'
+  unit: '-'
+sap_application_network_throughput_read:
+  prometheus_name: sap_application_network_throughput_read_kBy_per_second
+  metric_type: gauge
+  description: System network read throughput. Should meet expected throughput; low throughput reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '60'
+  unit: bytes/s
+sap_application_network_throughput_write:
+  prometheus_name: sap_application_network_throughput_write_kBy_per_second
+  metric_type: gauge
+  description: System network write throughput. Should meet expected throughput; low throughput reduces performance.
+  category: infrastructure_resource_usage
+  alert_threshold: '20'
+  unit: bytes/s
+sap_application_spool_wp_ended:
+  prometheus_name: sap_application_spool_wp_ended_ratio
+  metric_type: gauge
+  description: Number of spool work processes ending in error. Should be 0; spool jobs cannot complete.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_spool_wp_error_frequency:
+  prometheus_name: sap_application_spool_wp_error_frequency_per_min
+  metric_type: gauge
+  description: Frequency of spool work process errors. Should be 0 or low; errors disrupt the spool system.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: /min
+sap_application_storage_io_read_time:
+  prometheus_name: sap_application_storage_io_read_time_milliseconds
+  metric_type: gauge
+  description: Storage read I/O times. Should be low ms; high latency causes system-wide slowdown.
+  category: infrastructure_resource_usage
+  alert_threshold: '75'
+  unit: ms
+sap_application_storage_io_write_time:
+  prometheus_name: sap_application_storage_io_write_time_milliseconds
+  metric_type: gauge
+  description: Storage write I/O times. Should be low ms; high latency causes system-wide slowdown.
+  category: infrastructure_resource_usage
+  alert_threshold: '30'
+  unit: ms
+sap_application_log_freq:
+  prometheus_name: sap_application_log_freq_per_min
+  metric_type: gauge
+  description: System log event frequency. Should be low; frequent log events indicate potential issues.
+  category: error_and_warnings
+  alert_threshold: '30'
+  unit: 'min'
+sap_background_wp_free:
+  prometheus_name: sap_background_wp_free_ratio
+  metric_type: gauge
+  description: Number of free background processors. Should not fall below 10; low free processors cause job queue buildup, increasing CPU/memory load and delaying background tasks.
+  category: sap_resource_usage
+  alert_threshold: '-'
+  unit: '-'
+sap_application_memory_wp_nondia_restart:
+  prometheus_name: sap_application_memory_wp_nondia_restart_ratio
+  metric_type: gauge
+  description: Number of non-dialog work process restarts. Should be 0 or low; frequent restarts harm stability.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_memory_wp_private_count:
+  prometheus_name: sap_application_memory_wp_private_count_ratio
+  metric_type: gauge
+  description: Number of work processes running in private mode. Should be low; may indicate resource shortages.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_network_lan_collisions:
+  prometheus_name: sap_application_network_lan_collisions_ratio
+  metric_type: gauge
+  description: Number of LAN collisions. Should be 0; collisions cause data loss.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: '-'
+sap_application_network_lan_errors_in:
+  prometheus_name: sap_application_network_lan_errors_in_per_second
+  metric_type: gauge
+  description: Number of inbound LAN errors. Should be 0; network errors cause data loss.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: 's'
+sap_application_network_lan_errors_out:
+  prometheus_name: sap_application_network_lan_errors_out_per_second
+  metric_type: gauge
+  description: Number of inbound LAN errors. Should be 0; network errors cause data loss.
+  category: error_and_warnings
+  alert_threshold: '1'
+  unit: 's'

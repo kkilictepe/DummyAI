@@ -1,0 +1,133 @@
+# =============================================================================
+# !!! IMPORTANT: COLD-START SEED FILE ONLY — NOT THE SOURCE OF TRUTH !!!
+# =============================================================================
+# This YAML file is used ONLY for the initial database seeding on first start.
+# The REAL, LIVE configuration is stored in the DATABASE (config_* tables) and
+# is managed via the Admin UI or the config API.
+#
+# ANY CHANGES TO THIS FILE AFTER THE FIRST INITIALIZATION WILL BE IGNORED.
+# The system reads exclusively from the DB — this file is never re-read.
+#
+# To update configuration after initialization:
+#   Admin UI  →  Config section
+#   API       →  await set_config(domain, data)
+#                in src/config/config_service.py
+# =============================================================================
+
+# metrics/metric_profiles.yaml
+# Group metrics into profiles used by RootisMetricTool operations.
+
+sap_resource_usage:
+  - sap_application_background_wp_utilisation
+  - sap_application_dialog_steps
+  - sap_application_dialog_wp_priv_utilisation
+  - sap_application_dialog_wp_utilisation
+  - sap_application_gateway_clients
+  - sap_application_gateway_connections
+  - sap_application_icm_general_connections
+  - sap_application_icm_general_queue_length
+  - sap_application_spool_wp_utilisation
+  - sap_application_users_logged_in
+  - sap_background_wp_free
+  #- sap_application_webdynpro_abap_class will not be included in LLM comment resource: Rootis Excel
+
+hana_db_resource_usage:
+  - hana_memory_utilisation
+  - hana_disc_utilisation
+  - hana_cpu_utilisation
+
+infrastructure_resource_usage:
+  - sap_application_cpu_utilisation
+  - sap_application_memory_es_active
+  - sap_application_memory_es_recent_peak
+  - sap_application_memory_es_total_megabytes
+  - sap_application_memory_extended_global_used
+  - sap_application_memory_heap_active
+  - sap_application_memory_heap_peak
+  - sap_application_memory_heap_total
+  - sap_application_memory_paging_used
+  - sap_application_network_throughput_read
+  - sap_application_network_throughput_write
+  - sap_application_storage_io_read_time
+  - sap_application_storage_io_write_time
+  #- sap_application_memory_es_peak same promql with sap_application_memory_es_active
+
+error_and_warnings:
+  - sap_application_abap_shortdumps_frequency
+  - sap_application_background_wp_ended
+  - sap_application_background_wp_error_frequency
+  - sap_application_background_wp_errors
+  - sap_application_dialog_wp_ended
+  - sap_application_dialog_wp_error_frequency
+  - sap_application_memory_wp_dia_restart
+  - sap_application_memory_wp_hold_count
+  - sap_application_memory_wp_nondia_restart
+  - sap_application_memory_wp_private_count
+  - sap_application_network_lan_collisions
+  - sap_application_network_lan_errors_in
+  - sap_application_network_lan_errors_out
+  - sap_application_spool_wp_ended
+  - sap_application_spool_wp_error_frequency
+  - sap_application_log_freq
+
+integration_and_data_transfer:
+  - sap_application_ale_idoc_mt_att_class
+  - sap_application_ale_trfc_class
+  - sap_application_bgrfc_inbound_throughput_actual
+  - sap_application_bgrfc_inbound_throughput_average
+  - sap_application_bgrfc_outbound_throughput_actual
+  - sap_application_bgrfc_outbound_throughput_average
+
+# ── Composite categories (cross-layer, single tool call) ──────────────
+
+cpu_overview:
+  - sap_application_cpu_utilisation
+  - hana_cpu_utilisation
+  - sap_application_dialog_wp_utilisation
+  - sap_application_background_wp_utilisation
+  - sap_application_dialog_steps
+  - sap_application_users_logged_in
+
+memory_overview:
+  - hana_memory_utilisation
+  - sap_application_memory_es_active
+  - sap_application_memory_es_recent_peak
+  - sap_application_memory_es_total_megabytes
+  - sap_application_memory_extended_global_used
+  - sap_application_memory_heap_active
+  - sap_application_memory_heap_peak
+  - sap_application_memory_heap_total
+  - sap_application_memory_paging_used
+
+system_overview:
+  # CPU
+  - sap_application_cpu_utilisation
+  - hana_cpu_utilisation
+  # Memory
+  - hana_memory_utilisation
+  - sap_application_memory_es_active
+  - sap_application_memory_heap_active
+  - sap_application_memory_paging_used
+  # Disk
+  - hana_disc_utilisation
+  # Work processes
+  - sap_application_dialog_wp_utilisation
+  - sap_application_background_wp_utilisation
+  - sap_application_spool_wp_utilisation
+  # Workload & users
+  - sap_application_dialog_steps
+  - sap_application_users_logged_in
+  # Errors (key indicators only)
+  - sap_application_abap_shortdumps_frequency
+  - sap_application_dialog_wp_error_frequency
+  - sap_application_background_wp_error_frequency
+
+workprocess_overview:
+  - sap_application_dialog_wp_utilisation
+  - sap_application_dialog_wp_priv_utilisation
+  - sap_application_background_wp_utilisation
+  - sap_application_spool_wp_utilisation
+  - sap_background_wp_free
+  - sap_application_dialog_steps
+  - sap_application_users_logged_in
+  - sap_application_icm_general_queue_length

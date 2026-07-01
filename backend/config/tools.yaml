@@ -1,0 +1,63 @@
+# =============================================================================
+# !!! IMPORTANT: COLD-START SEED FILE ONLY — NOT THE SOURCE OF TRUTH !!!
+# =============================================================================
+# This YAML file is used ONLY for the initial database seeding on first start.
+# The REAL, LIVE configuration is stored in the DATABASE (config_* tables) and
+# is managed via the Admin UI or the config API.
+#
+# ANY CHANGES TO THIS FILE AFTER THE FIRST INITIALIZATION WILL BE IGNORED.
+# The system reads exclusively from the DB — this file is never re-read.
+#
+# To update configuration after initialization:
+#   Admin UI  →  Config section
+#   API       →  await set_config(domain, data)
+#                in src/config/config_service.py
+# =============================================================================
+
+# Tools Configuration
+#
+# Tool-level behavior settings for AI agent tools.
+# Connection details (URLs, tokens) are inherited from config/client.yaml.
+# See .env.sample for secrets.
+
+# ---------------------------------------------------------------------------
+# Prometheus advanced query tool
+# ---------------------------------------------------------------------------
+prometheus_advance_query:
+  max_metrics_per_call: 10
+  max_time_range_hours: 24
+  max_data_points: 10000
+  z_score_threshold: 3.0
+  enable_anomaly_detection: true
+  min_correlation_points: 10
+  default_baseline_offset_hours: 24
+
+# ---------------------------------------------------------------------------
+# Prometheus deterministic analysis tool
+# ---------------------------------------------------------------------------
+prometheus_deterministic_analysis:
+  max_metrics_per_call: 10
+  max_time_range_hours: 24
+  max_data_points: 10000
+
+# ---------------------------------------------------------------------------
+# SAP metric categorized tool
+# ---------------------------------------------------------------------------
+tool_sap_metric_categorized_rootis:
+  metric_catalog_path: config/metric_catalog.yaml
+  metric_profiles_path: config/metric_profiles.yaml
+
+# ---------------------------------------------------------------------------
+# SAP health check tool
+# ---------------------------------------------------------------------------
+tool_sap_info_health_check_rootis:
+  health_check_profiles_path: config/health_check_profiles.yaml
+
+# ---------------------------------------------------------------------------
+# Embedding metric retrieval tool
+# ---------------------------------------------------------------------------
+embedding_metric_retrieval:
+  top_k: 5
+  similarity_threshold: 0.75
+  faiss_index_path: ./data/faiss_mku_index
+  embedding_model: text-embedding-3-small

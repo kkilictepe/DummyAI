@@ -1,0 +1,43 @@
+# =============================================================================
+# !!! IMPORTANT: COLD-START SEED FILE ONLY — NOT THE SOURCE OF TRUTH !!!
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Managed Systems Registry
+# ---------------------------------------------------------------------------
+# All managed systems are defined here with their connection parameters.
+
+systems:
+
+  # --- SAP Systems ---
+
+  KHP:
+    system_type: SAP
+    display_name: "SAP KHP"
+    environment: production
+    host: KHP.company.com
+    sysnr: "00"
+    client: "100"
+    user: xx
+    password: xxx  # pragma: allowlist secret
+
+  KBP:
+    system_type: SAP
+    display_name: "SAP KBP"
+    environment: production
+    host: KBP.company.com
+    sysnr: "01"
+    client: "100"
+    user: xx
+    password: xxx  # pragma: allowlist secret
+
+  PROD01:
+    system_type: SAP
+    display_name: "SAP PROD01"
+    environment: production
+    host: prod-sap.company.com
+    sysnr: "02"
+    client: "200"
+    user: xx
+    password: xxx  # pragma: allowlist secret
+
