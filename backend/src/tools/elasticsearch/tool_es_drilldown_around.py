@@ -23,6 +23,7 @@ from src.tools.elasticsearch.shared.response_governance import (
     build_response_meta,
     coerce_json_object_arg,
 )
+from src.tools.elasticsearch.shared.time_range import parse_iso_utc
 
 _log = get_logger(__name__)
 
@@ -106,6 +107,19 @@ async def _run_drilldown_around(
         )
     filter_must_dict = coerced
 
+    # Parse a user-supplied timestamp anchor up front so a malformed value returns a clean
+    # invalid_request (parse_iso_utc tolerates whitespace + a trailing 'Z'/'z') instead of being
+    # swallowed by the broad handler below and surfacing as an opaque internal error.
+    anchor_ts_from_input: datetime | None = None
+    if anchor_doc_id is None and timestamp is not None:
+        try:
+            anchor_ts_from_input = parse_iso_utc(timestamp)
+        except (ValueError, TypeError):
+            return invalid_request(
+                f"Invalid timestamp {timestamp!r}: expected an ISO-8601 UTC instant.",
+                system_id=system_id,
+            )
+
     try:
         query_start = time.perf_counter()
         default_idx = index_pattern or es.default_index
@@ -135,10 +149,10 @@ async def _run_drilldown_around(
             anchor_source = anchor_hit.get("_source", {})
             anchor_id: str | None = anchor_hit.get("_id")
             anchor_index = anchor_hit.get("_index") or default_idx
-            anchor_ts = datetime.fromisoformat(anchor_source["@timestamp"].replace("Z", "+00:00"))
+            anchor_ts = parse_iso_utc(anchor_source["@timestamp"])
         else:
-            assert timestamp is not None  # guaranteed by the guard above
-            anchor_ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            assert anchor_ts_from_input is not None  # guaranteed by the guard + pre-parse above
+            anchor_ts = anchor_ts_from_input
             anchor_source = {"@timestamp": timestamp}
             anchor_id = None
             anchor_index = default_idx
@@ -208,7 +222,7 @@ async def _run_drilldown_around(
             ts_str = src.get("@timestamp", "")
             delta_ms: float | None
             try:
-                doc_ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                doc_ts = parse_iso_utc(ts_str)
                 delta_ms = abs((doc_ts - anchor_ts).total_seconds() * 1000)
             except (ValueError, AttributeError):
                 delta_ms = None

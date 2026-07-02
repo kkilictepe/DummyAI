@@ -25,6 +25,19 @@ _LABEL_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _STEP_MULTIPLIERS = {"s": 1, "m": 60, "h": 3600}
 
 
+def _normalize_iso(value: str) -> str:
+    """Strip surrounding whitespace and normalize a trailing 'Z'/'z' UTC designator.
+
+    ``datetime.fromisoformat`` accepts an uppercase 'Z' (Python >= 3.11) but rejects lowercase 'z'
+    and surrounding whitespace, even though both denote a valid UTC instant the LLM may emit. A
+    non-``str`` input keeps its ``AttributeError`` on ``.strip()`` so the caller's guard still runs.
+    """
+    s = value.strip()
+    if s.endswith(("Z", "z")):
+        s = s[:-1] + "+00:00"
+    return s
+
+
 class ValidationError(Exception):
     """Raised when a guardrail is violated. Carries structured context for reporting."""
 
@@ -117,7 +130,7 @@ class InputValidator:
     def validate_time_range(self, time_range: Any) -> None:
         """Validate ISO-8601 timestamps, ordering, window budget, step, and data-point budget."""
         try:
-            start_dt = datetime.fromisoformat(time_range.start.replace("Z", "+00:00"))
+            start_dt = datetime.fromisoformat(_normalize_iso(time_range.start))
         except (ValueError, AttributeError) as exc:
             raise ValidationError(
                 f"Invalid start timestamp: {time_range.start}. Expected ISO-8601 format",
@@ -127,7 +140,7 @@ class InputValidator:
             ) from exc
 
         try:
-            end_dt = datetime.fromisoformat(time_range.end.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(_normalize_iso(time_range.end))
         except (ValueError, AttributeError) as exc:
             raise ValidationError(
                 f"Invalid end timestamp: {time_range.end}. Expected ISO-8601 format",

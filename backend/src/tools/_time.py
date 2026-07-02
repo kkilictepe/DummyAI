@@ -47,16 +47,23 @@ def _coerce_end(end: str) -> int:
     A non-finite float input (``"inf"``, ``"1e400"`` which overflows to inf, ``"nan"``) raises
     :class:`ValueError` — **not** ``OverflowError`` — so the caller's ``except ValueError`` turns
     it into a graceful error dict instead of an unhandled crash.
+
+    Surrounding whitespace is stripped and a trailing UTC ``Z``/``z`` designator is normalized:
+    :func:`datetime.fromisoformat` accepts an uppercase ``Z`` (Python >= 3.11) but rejects lowercase
+    ``z`` and leading/trailing spaces, even though both denote a valid UTC instant.
     """
+    text = end.strip()
     try:
-        value = float(end)
+        value = float(text)
     except ValueError:
         pass
     else:
         if not math.isfinite(value):
             raise ValueError(f"Invalid end timestamp {end!r}: must be a finite number.")
         return int(value)
-    dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    if text[-1:] in ("Z", "z"):
+        text = f"{text[:-1]}+00:00"
+    dt = datetime.fromisoformat(text)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return int(dt.timestamp())

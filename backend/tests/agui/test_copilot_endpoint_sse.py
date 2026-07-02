@@ -288,6 +288,19 @@ def test_resolve_system_ids_drops_unknown_ids() -> None:
     assert resolve_system_ids(ri) == ["KHP", "KBP"]
 
 
+def test_resolve_system_ids_is_case_insensitive() -> None:
+    # A client asking about 'khp' must be scoped to KHP (canonical casing) — NOT dropped, which
+    # would silently widen scope to all managed systems. Mixed case + whitespace also normalize.
+    ri = _ri(context=[Context(description="system_ids", value="khp,  Kbp ")])
+    assert resolve_system_ids(ri) == ["KHP", "KBP"]
+
+
+def test_resolve_system_ids_case_insensitive_dedup() -> None:
+    # Ids that differ only by case collapse to a single canonical entry.
+    ri = _ri(context=[Context(description="system_ids", value="KHP, khp, kHp")])
+    assert resolve_system_ids(ri) == ["KHP"]
+
+
 def test_resolve_system_ids_injection_value_is_dropped() -> None:
     # A prompt-injection payload smuggled as a 'system_id' is not a managed id -> dropped, and
     # with nothing valid left we fall back to the managed set. The malicious text never survives.

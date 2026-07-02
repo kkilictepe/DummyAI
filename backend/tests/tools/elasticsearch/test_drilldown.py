@@ -37,6 +37,31 @@ async def test_timestamp_anchor_computes_delta_ms(es_patch: Callable[[FakeES], F
     assert "gt" in after_range and "lte" in after_range
 
 
+async def test_timestamp_anchor_tolerates_lowercase_z_and_whitespace(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # A valid UTC instant phrased with lowercase 'z' or surrounding whitespace must be accepted
+    # (equivalent to the uppercase-Z form), not masked as an internal error.
+    for anchor in ("2026-06-01T10:00:00z", " 2026-06-01T10:00:00Z "):
+        fake = es_patch(FakeES([search_response([]), search_response([])]))
+        raw = await es_drilldown_around.ainvoke({"system_id": "KHP", "timestamp": anchor})
+        result = json.loads(raw)
+        assert result["status"] == "ok", anchor
+        assert len(fake.search_calls) == 2
+
+
+async def test_malformed_timestamp_anchor_is_invalid_request(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # A malformed anchor returns a clean invalid_request BEFORE any query — not a masked internal
+    # error swallowed by the broad handler.
+    fake = es_patch(FakeES([]))
+    raw = await es_drilldown_around.ainvoke({"system_id": "KHP", "timestamp": "not-a-timestamp"})
+    result = json.loads(raw)
+    assert result["status"] == "invalid_request"
+    assert fake.search_calls == []
+
+
 async def test_doc_id_anchor_resolves_then_windows(es_patch: Callable[[FakeES], FakeES]) -> None:
     anchor = search_response(
         [hit("X", {"@timestamp": "2026-06-01T10:00:00Z", "message": "anchor"})]

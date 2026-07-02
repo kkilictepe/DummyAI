@@ -1,8 +1,10 @@
 """``es_aggregation`` — governed Elasticsearch aggregation queries.
 
 One async ``@tool`` supporting date_histogram / terms / count / cardinality aggregations over a
-system_id's log index. Unknown ``filter_must`` field names are rejected against the resolved
-profile before any query reaches ES, matching the ``es_field_search`` governance contract.
+system_id's log index. Unknown ``filter_must`` field names **and** the aggregation ``field`` are
+rejected against the resolved profile before any query reaches ES, matching the ``es_field_search``
+governance contract — a ``terms`` aggregation returns the distinct *values* of ``field`` to the
+browser, so an ungoverned field would let a caller enumerate arbitrary indexed data.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from src.tools.elasticsearch.shared.response_governance import (
     coerce_json_object_arg,
     fit_items_to_cap,
     validate_field_filters,
+    validate_projection_fields,
 )
 from src.tools.elasticsearch.shared.time_range import parse_time_range
 
@@ -39,7 +42,7 @@ _DESCRIPTION = (
     "'count' (no field — total matching document count); 'cardinality' (requires field — unique "
     'value count). Use filter_must (JSON string of field->value pairs, e.g. \'{"host":"app01"}\') '
     "to pre-filter. Returns {status:'success', agg_type, field, buckets, response_meta}. Unknown "
-    "filter_must field names return {status:'invalid_request'} without querying ES."
+    "filter_must or aggregation field names return {status:'invalid_request'} without querying ES."
 )
 
 
@@ -96,7 +99,7 @@ def _validate_agg_params(agg_type: str, field: str | None, interval: str | None)
     elif agg_type in ("terms", "cardinality") and not field:
         return invalid_request(
             f"{agg_type} requires 'field'",
-            suggestion="Provide a field parameter, e.g. field='error_code'",
+            suggestion="Provide a field parameter, e.g. field='host'",
         )
     return None
 
@@ -159,6 +162,14 @@ async def _run_aggregation(
         field_err = validate_field_filters(filter_must_dict, profile)
         if field_err is not None:
             return json.dumps(dict(field_err), default=str)
+
+    # Govern the aggregation `field` exactly like must_match / fields_to_return: a terms agg returns
+    # that field's distinct VALUES to the browser (cardinality/date_histogram also read it), so it
+    # must be a field the profile declares — never an arbitrary, possibly sensitive, indexed field.
+    if field is not None:
+        agg_field_err = validate_projection_fields([field], profile)
+        if agg_field_err is not None:
+            return json.dumps(dict(agg_field_err), default=str)
 
     try:
         query_start = time.perf_counter()

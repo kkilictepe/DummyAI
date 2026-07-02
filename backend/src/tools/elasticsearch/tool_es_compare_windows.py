@@ -28,7 +28,7 @@ from src.tools.elasticsearch.shared.response_governance import (
     validate_field_filters,
 )
 from src.tools.elasticsearch.shared.signature_extractor import SignatureExtractor
-from src.tools.elasticsearch.shared.time_range import parse_relative_time_range
+from src.tools.elasticsearch.shared.time_range import parse_iso_utc, parse_relative_time_range
 
 _log = get_logger(__name__)
 
@@ -79,12 +79,9 @@ def _parse_iso_pair(pair: str, label: str) -> tuple[datetime, datetime]:
     parts = pair.split("/", 1)
     if len(parts) != 2:
         raise ValueError(f"{label}: expected '<iso>/<iso>', got {pair!r}")
-    start = datetime.fromisoformat(parts[0].strip().replace("Z", "+00:00"))
-    end = datetime.fromisoformat(parts[1].strip().replace("Z", "+00:00"))
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=UTC)
-    if end.tzinfo is None:
-        end = end.replace(tzinfo=UTC)
+    # Shared parser tolerates whitespace + a trailing 'Z'/'z' and treats naive datetimes as UTC.
+    start = parse_iso_utc(parts[0])
+    end = parse_iso_utc(parts[1])
     if start >= end:
         raise ValueError(f"{label}: ISO pair start must be strictly before end")
     return start, end

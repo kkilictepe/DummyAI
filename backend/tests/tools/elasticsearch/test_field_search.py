@@ -42,6 +42,36 @@ async def test_unknown_field_rejected_without_search(es_patch: Callable[[FakeES]
     assert fake.search_calls == []  # rejected before touching ES
 
 
+async def test_requested_projection_fields_appear_in_source(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # Known profile fields requested via fields_to_return are projected (on top of the baseline).
+    fake = es_patch(FakeES([search_response([hit("1", {"message": "a", "host": "app01"})])]))
+    await es_field_search.ainvoke(
+        {"system_id": "KHP", "time_range": "1h", "fields_to_return": ["host", "user"]}
+    )
+    _index, body = fake.search_calls[0]
+    assert "host" in body["_source"]
+    assert "user" in body["_source"]
+    assert "@timestamp" in body["_source"]  # baseline still present
+
+
+async def test_unknown_projection_field_rejected_without_search(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # fields_to_return is browser-visible, so an ungoverned field name (e.g. a would-be secret) must
+    # be rejected as invalid_request BEFORE any ES query — mirroring must_match governance.
+    fake = es_patch(FakeES([search_response([])]))
+    raw = await es_field_search.ainvoke(
+        {"system_id": "KHP", "time_range": "1h", "fields_to_return": ["password", "message"]}
+    )
+    result = json.loads(raw)
+    assert result["status"] == "invalid_request"
+    assert "password" in result["reason"]
+    assert "message" not in result["reason"]  # baseline field is allowed, not reported as unknown
+    assert fake.search_calls == []  # rejected before touching ES
+
+
 async def test_malformed_must_match_is_invalid_request(
     es_patch: Callable[[FakeES], FakeES],
 ) -> None:

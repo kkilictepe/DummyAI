@@ -37,6 +37,20 @@ def test_parse_windows_iso_pair() -> None:
     assert b_start == datetime(2026, 5, 1, 1, 0, 0, tzinfo=UTC)
 
 
+def test_parse_windows_iso_pair_tolerates_lowercase_z() -> None:
+    # A lowercase-'z' ISO pair denotes the same valid UTC window as uppercase 'Z' and must parse
+    # identically (not be rejected as invalid_request).
+    lower = _parse_windows(
+        "2026-05-01T00:00:00z/2026-05-01T01:00:00z",
+        "2026-05-01T01:00:00z/2026-05-01T02:00:00z",
+    )
+    upper = _parse_windows(
+        "2026-05-01T00:00:00Z/2026-05-01T01:00:00Z",
+        "2026-05-01T01:00:00Z/2026-05-01T02:00:00Z",
+    )
+    assert lower == upper
+
+
 async def test_signature_diff_flags_new_in_b_first(es_patch: Callable[[FakeES], FakeES]) -> None:
     window_a = search_response([hit("a1", {"message": "old error"}) for _ in range(2)])
     window_b = search_response(

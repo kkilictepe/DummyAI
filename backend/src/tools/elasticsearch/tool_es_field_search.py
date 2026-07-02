@@ -2,8 +2,9 @@
 
 Collapses the reference 3-symbol proxy pattern (Request + Tool + ProxyTool, which existed only for
 per-request registry state) into one async ``@tool`` over the single shared Elasticsearch client.
-Unknown ``must_match`` field names are rejected against the resolved profile's searchable fields
-*before* any query reaches Elasticsearch.
+Unknown ``must_match`` filter names *and* unknown ``fields_to_return`` projection names are rejected
+against the resolved profile's searchable fields *before* any query reaches Elasticsearch — so a
+caller cannot exfiltrate ungoverned ``_source`` fields through the browser-visible result.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from src.tools.elasticsearch.shared.response_governance import (
     coerce_json_object_arg,
     fit_items_to_cap,
     validate_field_filters,
+    validate_projection_fields,
 )
 from src.tools.elasticsearch.shared.time_range import parse_time_range
 
@@ -37,8 +39,8 @@ _DESCRIPTION = (
     'Accepts must_match (JSON string of field->value pairs, e.g. \'{"host":"app01"}\'), '
     "optional text_search, log_level, exclude_patterns, sort_by, limit (max 1000), "
     "and fields_to_return. Returns {status, hits, response_meta} with compact matched log "
-    "documents. Unknown must_match field names return {status:'invalid_request'} without "
-    "querying ES."
+    "documents. Unknown must_match or fields_to_return field names return "
+    "{status:'invalid_request'} without querying ES."
 )
 
 
@@ -104,6 +106,13 @@ async def _run_field_search(
     field_err = validate_field_filters(must_match_dict, profile)
     if field_err is not None:
         return json.dumps(dict(field_err), default=str)
+
+    # Govern the output projection too: fields_to_return is streamed to the browser, so a caller
+    # may only project fields the profile knows about (searchable fields plus the baseline) — never
+    # arbitrary _source fields. Reject unknown projections before any query reaches Elasticsearch.
+    projection_err = validate_projection_fields(fields_to_return, profile)
+    if projection_err is not None:
+        return json.dumps(dict(projection_err), default=str)
 
     try:
         query_start = time.perf_counter()

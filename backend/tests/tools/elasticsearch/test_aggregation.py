@@ -187,6 +187,33 @@ async def test_unknown_filter_must_field_rejected(es_patch: Callable[[FakeES], F
     assert fake.search_calls == []
 
 
+async def test_terms_on_ungoverned_field_rejected_without_search(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # A terms agg returns the distinct VALUES of `field` to the browser, so an ungoverned field name
+    # (e.g. a would-be secret) must be rejected as invalid_request BEFORE any ES query — the same
+    # governance already applied to filter_must / fields_to_return.
+    fake = es_patch(FakeES([terms_agg_response([{"key": "leak", "doc_count": 9}])]))
+    raw = await es_aggregation.ainvoke(
+        {"system_id": "KHP", "time_range": "1h", "agg_type": "terms", "field": "sap_password_hash"}
+    )
+    result = json.loads(raw)
+    assert result["status"] == "invalid_request"
+    assert "sap_password_hash" in result["reason"]
+    assert fake.search_calls == []  # rejected before touching ES
+
+
+async def test_cardinality_on_ungoverned_field_rejected_without_search(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    fake = es_patch(FakeES([cardinality_response(3)]))
+    raw = await es_aggregation.ainvoke(
+        {"system_id": "KHP", "time_range": "1h", "agg_type": "cardinality", "field": "secret_token"}
+    )
+    assert json.loads(raw)["status"] == "invalid_request"
+    assert fake.search_calls == []
+
+
 async def test_aggregation_scopes_by_system_id(es_patch: Callable[[FakeES], FakeES]) -> None:
     fake = es_patch(FakeES([count_response(1)]))
     await es_aggregation.ainvoke({"system_id": "khp", "time_range": "1h", "agg_type": "count"})

@@ -121,8 +121,8 @@ tool can never touch a secret.
 | `metric_lookup` | [`metric_lookup/`](../../backend/src/tools/metric_lookup/) | Translate a natural-language phrase into ranked catalog metrics (`prometheus_names`). Deterministic catalog resolver by default; optional semantic/embedding resolver behind a config flag (same `MetricLookupResolver` seam). |
 | `prometheus_metrics_advance_query` | [`prometheus_advanced_query/`](../../backend/src/tools/prometheus_advanced_query/) | Advanced PromQL engine: `instant` / `range` / `anomaly_check` (z-score) / `baseline_compare` / `correlation` (pure-python Pearson). |
 | `list_sap_systems` | [`systems.py`](../../backend/src/tools/systems.py) | List managed systems — **`name` / `display_name` / `environment` only**. Never exposes host / user / password / sysnr / client. |
-| `es_field_search` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Field-scoped log search (time range + `system_id` term + projection). |
-| `es_aggregation` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Terms / date-histogram / stats aggregations over logs. |
+| `es_field_search` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Field-scoped log search (time range + `system_id` term + governed projection). Both `must_match` filters **and** `fields_to_return` projections are validated against the profile's searchable fields; unknown names return `invalid_request` before any ES query. |
+| `es_aggregation` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Terms / date-histogram / count / cardinality aggregations over logs. The aggregation `field` (whose distinct values a `terms` agg streams back) and `filter_must` are both validated against the profile; unknown names return `invalid_request` before any ES query. |
 | `es_compare_windows` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Compare two time windows; surfaces signatures new in the later window. |
 | `es_drilldown_around` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Fetch context before/after an anchor event (`delta_ms`, `anchor_not_found`). |
 | `es_cluster_errors` | [`elasticsearch/`](../../backend/src/tools/elasticsearch/) | Normalize + cluster errors into ranked clusters (deterministic signatures/ids). |
@@ -134,7 +134,10 @@ tool can never touch a secret.
   serves all systems, so `system_id` is a filter value, never a routing key.
 - Tool results are relayed to the browser via `TOOL_CALL_RESULT`, so returns must be **JSON-safe**
   (no `NaN`/`Inf`) and **leak-free** (generic error strings; the real exception is logged
-  server-side).
+  server-side). Field-selecting inputs (`es_field_search`'s `must_match` / `fields_to_return`,
+  `es_aggregation`'s `filter_must` / `field`) are validated against the resolved profile's searchable
+  fields so an ungoverned field can't be exfiltrated through the browser-visible result — a `terms`
+  aggregation in particular streams back the distinct *values* of its `field`.
 - Multi-app-server Prometheus results are aggregated **order-independently** (deterministic).
 - Log/metric responses are governed by a 256 KB byte cap.
 
@@ -150,9 +153,12 @@ systems for each turn:
 2. a pre-populated `state["system_ids"]`, else
 3. **all** managed systems.
 
-Every candidate id is validated against `get_systems()`; unknown ids are **dropped** (logged). This
-is a security boundary: untrusted `context`/`state` cannot smuggle arbitrary text into the answering
-agent's trusted system prompt via the scope channel. The resolved list is injected into graph state,
+Every candidate id is validated against `get_systems()` **case-insensitively** (stripped +
+upper-cased to the catalog's canonical casing, matching the `system_id.upper()` ES filters); unknown
+ids are **dropped** (logged). Case-insensitive matching matters for safety, not just ergonomics: a
+mistyped `khp` must resolve to `KHP` rather than being dropped and silently widening scope to *all*
+systems. This is a security boundary: untrusted `context`/`state` cannot smuggle arbitrary text into
+the answering agent's trusted system prompt via the scope channel. The resolved list is injected into graph state,
 reaches the agent subgraph's `CopilotAgentState`, and a `dynamic_prompt` middleware appends the
 scope line to the committed base prompt at invoke time.
 

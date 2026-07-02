@@ -45,10 +45,13 @@ def parse_relative_time_range(
     return (to_time - unit_map[unit], to_time)
 
 
-def _parse_iso_utc(value: str) -> datetime:
+def parse_iso_utc(value: str) -> datetime:
     """Parse a single ISO-8601 datetime, returning a UTC-aware datetime.
 
-    Accepts a trailing 'Z'/'z' (zulu) and naive datetimes (assumed UTC).
+    Accepts surrounding whitespace and a trailing 'Z'/'z' (zulu) — neither of which
+    :func:`datetime.fromisoformat` tolerates on its own even though both denote a valid UTC
+    instant — and treats a naive datetime as UTC. Shared by every ES tool that parses an
+    LLM/user-supplied ISO timestamp so they all accept the same set of valid forms.
     """
     s = value.strip()
     if s.endswith(("Z", "z")):
@@ -84,8 +87,8 @@ def parse_time_range(time_range: str, *, now: datetime | None = None) -> tuple[d
                 "'2026-04-22T17:25:00Z/2026-04-22T20:25:30Z'."
             )
         try:
-            from_time = _parse_iso_utc(parts[0])
-            to_time = _parse_iso_utc(parts[1])
+            from_time = parse_iso_utc(parts[0])
+            to_time = parse_iso_utc(parts[1])
         except ValueError as exc:
             raise ValueError(
                 f"Invalid time_range format: '{time_range}'. "
@@ -110,4 +113,4 @@ def parse_time_range(time_range: str, *, now: datetime | None = None) -> tuple[d
         ) from exc
 
 
-__all__ = ["parse_relative_time_range", "parse_time_range"]
+__all__ = ["parse_iso_utc", "parse_relative_time_range", "parse_time_range"]

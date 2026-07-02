@@ -56,11 +56,17 @@ def resolve_system_ids(run_input: RunAgentInput) -> list[str]:
 
     Every candidate id is validated against the managed-systems catalog (``get_systems()``) and
     unknown ids are dropped — so untrusted ``context``/``state`` cannot smuggle arbitrary text into
-    the answering agent's (trusted) system prompt via the scope channel. If nothing valid remains,
-    we fall back to all managed systems. Order-preserving and de-duplicated.
+    the answering agent's (trusted) system prompt via the scope channel. Matching is
+    **case-insensitive** (ids are stripped + upper-cased, the codebase's canonical casing — see the
+    ``system_id.upper()`` ES filters), so a client asking about ``khp`` is scoped to ``KHP`` rather
+    than being silently dropped and widening scope to *all* systems. If nothing valid remains, we
+    fall back to all managed systems. Order-preserving, de-duplicated, and returned in the catalog's
+    canonical casing.
     """
     managed = list(get_systems().keys())
-    valid = set(managed)
+    # Upper-cased key -> catalog's canonical id, so matching tolerates client casing while the
+    # returned ids stay exactly as the managed-systems catalog spells them.
+    canonical = {system_id.upper(): system_id for system_id in managed}
 
     raw: str | None = None
     for ctx in run_input.context or []:
@@ -81,12 +87,13 @@ def resolve_system_ids(run_input: RunAgentInput) -> list[str]:
     deduped: list[str] = []
     dropped: list[str] = []
     for system_id in requested:
-        if system_id not in valid:
+        canonical_id = canonical.get(str(system_id).strip().upper())
+        if canonical_id is None:
             dropped.append(system_id)
             continue
-        if system_id not in seen:
-            seen.add(system_id)
-            deduped.append(system_id)
+        if canonical_id not in seen:
+            seen.add(canonical_id)
+            deduped.append(canonical_id)
 
     if dropped:
         _log.warning("scope_ids_dropped", dropped=dropped)

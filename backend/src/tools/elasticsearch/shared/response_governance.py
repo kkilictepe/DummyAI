@@ -135,6 +135,30 @@ def validate_field_filters(
     )
 
 
+def validate_projection_fields(
+    fields_to_return: Collection[str],
+    profile: LogInvestigationProfile,
+) -> InvalidRequestError | None:
+    """Return None if every requested projection field is allowed; else an error dict.
+
+    ``fields_to_return`` selects which ``_source`` fields are returned to the caller, and the tool
+    result is relayed verbatim to the browser via ``TOOL_CALL_RESULT``. Left ungoverned, a caller
+    (or a prompt-injection payload) could project arbitrary fields — including ones the profile
+    never intends to expose — and exfiltrate them. So a requested field must be either part of the
+    profile's ``searchable_fields()`` (the fields it can filter *or retrieve*) or the minimal
+    baseline every response already carries. Unknown fields are rejected *before* any ES query.
+    """
+    allowed = profile.searchable_fields() | MINIMAL_PROJECTION_BASELINE
+    unknown = set(fields_to_return) - allowed
+    if not unknown:
+        return None
+    return InvalidRequestError(
+        status="invalid_request",
+        reason=f"Unknown field(s) in fields_to_return: {sorted(unknown)!r}",
+        suggestion=f"Projectable fields for {profile.system_type!r}: {sorted(allowed)!r}",
+    )
+
+
 __all__ = [
     "MINIMAL_PROJECTION_BASELINE",
     "InvalidRequestError",
@@ -144,4 +168,5 @@ __all__ = [
     "enforce_byte_cap",
     "fit_items_to_cap",
     "validate_field_filters",
+    "validate_projection_fields",
 ]

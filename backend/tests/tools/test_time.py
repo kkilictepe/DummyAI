@@ -48,6 +48,21 @@ def test_resolve_range_iso_end_is_treated_as_utc() -> None:
     assert int(end) - int(start) == 3600
 
 
+@pytest.mark.parametrize(
+    "end",
+    [
+        "2026-07-01T00:00:00Z",  # canonical uppercase designator
+        "2026-07-01T00:00:00z",  # lowercase 'z' — fromisoformat rejects it raw
+        " 2026-07-01T00:00:00Z ",  # surrounding whitespace
+        "  2026-07-01T00:00:00+00:00  ",  # whitespace around an explicit offset
+    ],
+)
+def test_resolve_range_iso_end_tolerates_z_case_and_whitespace(end: str) -> None:
+    # All of these denote the same valid UTC instant, so they must resolve identically to the
+    # canonical uppercase-Z form (and never raise) — the LLM/user may phrase 'end' any of these.
+    assert resolve_range("1h", end) == resolve_range("1h", "2026-07-01T00:00:00Z")
+
+
 def test_resolve_range_default_end_uses_now() -> None:
     start, end = resolve_range("5m")
     assert int(end) - int(start) == 300

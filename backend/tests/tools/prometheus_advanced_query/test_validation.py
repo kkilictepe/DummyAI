@@ -45,6 +45,21 @@ def test_valid_input_passes() -> None:
     assert err is None
 
 
+@pytest.mark.parametrize(
+    "start,end",
+    [
+        ("2024-01-20T10:00:00z", "2024-01-20T11:00:00z"),  # lowercase 'z' designator
+        (" 2024-01-20T10:00:00Z ", " 2024-01-20T11:00:00Z "),  # surrounding whitespace
+    ],
+)
+def test_iso_timestamps_tolerate_lowercase_z_and_whitespace(start: str, end: str) -> None:
+    # A valid UTC window phrased with lowercase 'z' or padding must pass, not be rejected as an
+    # invalid timestamp format.
+    ok, err = _VALIDATOR.validate(_input(start=start, end=end))
+    assert ok is True, err
+    assert err is None
+
+
 def test_start_not_before_end_is_rejected() -> None:
     ok, err = _VALIDATOR.validate(_input(start="2024-01-20T11:00:00Z", end="2024-01-20T10:00:00Z"))
     assert ok is False
