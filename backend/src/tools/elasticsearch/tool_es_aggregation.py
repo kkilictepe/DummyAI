@@ -166,7 +166,9 @@ async def _run_aggregation(
     # Govern the aggregation `field` exactly like must_match / fields_to_return: a terms agg returns
     # that field's distinct VALUES to the browser (cardinality/date_histogram also read it), so it
     # must be a field the profile declares — never an arbitrary, possibly sensitive, indexed field.
-    if field is not None:
+    # ``if field`` (not ``is not None``) so an empty-string field on a count call — which ignores
+    # field entirely — is treated as absent rather than rejected.
+    if field:
         agg_field_err = validate_projection_fields([field], profile)
         if agg_field_err is not None:
             return json.dumps(dict(agg_field_err), default=str)
