@@ -28,6 +28,9 @@ def test_searchable_fields_derived_from_extractors() -> None:
     # function_type field is included so must_match on it validates.
     assert "system_function_type" in fields
     assert "system_id" in fields
+    # SAP component dimensions the normalizer extracts are declared (via source_fields_extension),
+    # so they are filterable / projectable / aggregatable — not rejected by field governance.
+    assert {"transaction", "program", "work_process_type", "message_class"}.issubset(fields)
 
 
 def test_resolve_system_type_explicit_wins() -> None:

@@ -417,6 +417,19 @@ _SAP_FIELD_EXTRACTORS: dict[str, list[str]] = {
     "user": ["user", "username", "user_name", "sap_user"],
 }
 
+# Canonical SAP component dimensions the normalizer extracts in ``extract_component_context``.
+# Declared here so they feed ``searchable_fields()`` and are therefore filterable / projectable /
+# aggregatable — they are first-class SAP RCA dimensions (aggregate errors by transaction or
+# program), not secrets. Without this, governance would reject a terms agg on ``transaction``.
+_SAP_SOURCE_FIELDS_EXTENSION: list[str] = [
+    "transaction",
+    "program",
+    "work_process_type",
+    "work_process_id",
+    "message_class",
+    "message_id",
+]
+
 
 # ---------------------------------------------------------------------------
 # Profile
@@ -451,6 +464,9 @@ class SapProfile(LogInvestigationProfile):
 
     def field_extractors(self) -> dict[str, list[str]]:
         return _SAP_FIELD_EXTRACTORS
+
+    def source_fields_extension(self) -> list[str]:
+        return _SAP_SOURCE_FIELDS_EXTENSION
 
     def extract_component_context(
         self, raw_log: dict[str, Any], message: str

@@ -214,6 +214,22 @@ async def test_cardinality_on_ungoverned_field_rejected_without_search(
     assert fake.search_calls == []
 
 
+async def test_terms_on_declared_sap_dimension_is_allowed(
+    es_patch: Callable[[FakeES], FakeES],
+) -> None:
+    # 'transaction' is a first-class SAP RCA dimension declared by the profile, so aggregating on
+    # it must be permitted (governance blocks only undeclared fields, not legitimate ones).
+    fake = es_patch(FakeES([terms_agg_response([{"key": "VA01", "doc_count": 7}])]))
+    raw = await es_aggregation.ainvoke(
+        {"system_id": "KHP", "time_range": "1h", "agg_type": "terms", "field": "transaction"}
+    )
+    result = json.loads(raw)
+    assert result["status"] == "success"
+    assert result["buckets"] == [{"key": "VA01", "count": 7}]
+    _index, body = fake.search_calls[0]
+    assert body["aggs"]["agg_result"]["terms"]["field"] == "transaction"
+
+
 async def test_aggregation_scopes_by_system_id(es_patch: Callable[[FakeES], FakeES]) -> None:
     fake = es_patch(FakeES([count_response(1)]))
     await es_aggregation.ainvoke({"system_id": "khp", "time_range": "1h", "agg_type": "count"})
