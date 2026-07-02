@@ -1,0 +1,45 @@
+# =============================================================================
+# Dummy AI — non-secret application configuration.
+# Secrets (API keys, tokens, hosts) live ONLY in .env — never here.
+# Env vars override these values; nested keys use SECTION__KEY (e.g. LLM__TEMPERATURE).
+# =============================================================================
+
+# --- LLM models (OpenAI; ids are non-secret config; read here, never hardcoded elsewhere) ---
+llm:
+  # Answering copilot agent — capable reasoning model, streams Markdown.
+  answer_model: gpt-5.5
+  # Guardrail classifier — cheap + fast (structured-output classification).
+  guard_model: gpt-5.4-mini
+  # gpt-5/o-series reasoning models ignore a custom temperature (they use their default); this
+  # value is honoured by non-reasoning models (e.g. gpt-4o).
+  temperature: 0.0
+  # Maps to max_completion_tokens. For a reasoning model this is the COMBINED reasoning + visible
+  # output budget, so keep headroom or long answers truncate (finish_reason=length).
+  max_tokens: 8192
+  # reasoning_effort: minimal | low | medium | high (reasoning models only). null = model default.
+  answer_reasoning_effort: null      # let the answerer reason at its default depth
+  guard_reasoning_effort: minimal    # snap yes/no classification — don't burn reasoning tokens
+
+# --- Copilot flow ---
+copilot:
+  max_tool_iterations: 16
+  system_prompt: |
+    You are Dummy AI, an SAP Basis operations copilot. You help SAP Basis operators
+    understand the health, performance, and errors of the SAP systems you monitor.
+
+    You have tools that query Prometheus metrics and Elasticsearch logs for these systems.
+    Use them to ground every operational claim in real data — never invent metric values,
+    thresholds, or log lines. If a tool returns no data, say so plainly.
+
+    Answer in **Markdown**: short summary first, then supporting detail (tables/bullets for
+    metrics, fenced blocks for log excerpts). Be concise and operator-focused. Call out
+    anomalies and threshold breaches explicitly, and suggest the next diagnostic step when useful.
+
+# --- CORS (Vite dev origin) ---
+cors:
+  allow_origins:
+    - http://localhost:5173
+
+# --- Elasticsearch (non-secret behaviour; hosts/api_key come from .env) ---
+elasticsearch:
+  index_name: sap-logs-*

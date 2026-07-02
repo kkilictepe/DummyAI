@@ -54,10 +54,11 @@ tool_sap_info_health_check_rootis:
   health_check_profiles_path: config/health_check_profiles.yaml
 
 # ---------------------------------------------------------------------------
-# Embedding metric retrieval tool
+# Embedding metric retrieval (Phase 6) — semantic backend for `metric_lookup`.
+# Disabled by default: metric_lookup uses the deterministic catalog resolver unless `enabled: true`
+# AND OPENAI_API_KEY is set. Even when enabled, an embedding failure degrades gracefully to
+# keyword+rule scoring (metric_lookup never breaks).
 # ---------------------------------------------------------------------------
 embedding_metric_retrieval:
-  top_k: 5
-  similarity_threshold: 0.75
-  faiss_index_path: ./data/faiss_mku_index
+  enabled: false
   embedding_model: text-embedding-3-small

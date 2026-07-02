@@ -39,6 +39,7 @@ npx tsc --noEmit       # type-check
   (STATE_DELTA is an RFC-6902 JSON Patch — a mismatched shape fails to apply).
 - In dev, use Vite `server.proxy` for `/api` + the AG-UI endpoints (or ensure backend CORS allows
   `:5173`). **Disable proxy buffering** or SSE streaming will appear to hang.
+- Any chatbox connected to AI Agents should support markdown parsing.
 
 ## Testing (required after every change)
 - **Vitest + React Testing Library** (`environment: 'jsdom'`, add `/// <reference types="vitest/config" />`
