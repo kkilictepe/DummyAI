@@ -1,8 +1,9 @@
 """Embedding backend seam.
 
 The resolver depends only on the :class:`EmbeddingBackend` protocol, so tests inject a fake and
-production uses OpenAI. ``langchain_openai`` is imported lazily (it is an optional extra) and
-reads ``OPENAI_API_KEY`` from the environment itself — no secret ever flows through the tool layer.
+production uses OpenAI. ``langchain_openai`` is imported lazily (deferring client construction to
+first use) and reads ``OPENAI_API_KEY`` from the environment itself — no secret ever flows through
+the tool layer.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ tool roster. Two deliberate points:
 * **No ``response_format``.** CLAUDE.md says agents return structured output, but a chat copilot
   must stream Markdown tokens. We resolve the tension by keeping structure in *graph state* (the
   ``GuardrailVerdict``) and letting this agent stream free Markdown. Forcing a ``response_format``
-  here would set ``tool_choice`` and collide with Anthropic extended thinking (langchain #35539).
+  here would pin the final turn to a schema instead of streamable prose, so we deliberately omit it.
 * **Per-request scope via a dynamic prompt.** The in-scope ``system_ids`` differ per request, but
   the graph is compiled once at startup. A ``dynamic_prompt`` middleware reads ``system_ids`` from
   state at invoke time and appends the scope line to the committed base prompt.
@@ -46,13 +46,14 @@ def build_copilot_agent(
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     """Build the answering agent subgraph. Compiled without a checkpointer — the parent Copilot
     graph owns persistence, and a nested subgraph shares it."""
-    from langchain_anthropic import ChatAnthropic
+    from src.agents._llm import build_chat_openai
 
-    model = ChatAnthropic(
+    model = build_chat_openai(
         model=settings.llm.answer_model,
-        api_key=settings.anthropic_api_key,
+        api_key=settings.openai_api_key,
         temperature=settings.llm.temperature,
         max_tokens=settings.llm.max_tokens,
+        reasoning_effort=settings.llm.answer_reasoning_effort,
     )
 
     base_prompt = settings.copilot.system_prompt

@@ -4,18 +4,25 @@
 # Env vars override these values; nested keys use SECTION__KEY (e.g. LLM__TEMPERATURE).
 # =============================================================================
 
-# --- LLM models (ids are non-secret config; read here, never hardcoded elsewhere) ---
+# --- LLM models (OpenAI; ids are non-secret config; read here, never hardcoded elsewhere) ---
 llm:
-  # Answering copilot agent — capable, streams Markdown.
-  answer_model: claude-sonnet-5
-  # Guardrail classifier — cheap + fast.
-  guard_model: claude-haiku-4-5-20251001
+  # Answering copilot agent — capable reasoning model, streams Markdown.
+  answer_model: gpt-5.5
+  # Guardrail classifier — cheap + fast (structured-output classification).
+  guard_model: gpt-5.4-mini
+  # gpt-5/o-series reasoning models ignore a custom temperature (they use their default); this
+  # value is honoured by non-reasoning models (e.g. gpt-4o).
   temperature: 0.0
-  max_tokens: 4096
+  # Maps to max_completion_tokens. For a reasoning model this is the COMBINED reasoning + visible
+  # output budget, so keep headroom or long answers truncate (finish_reason=length).
+  max_tokens: 8192
+  # reasoning_effort: minimal | low | medium | high (reasoning models only). null = model default.
+  answer_reasoning_effort: null      # let the answerer reason at its default depth
+  guard_reasoning_effort: minimal    # snap yes/no classification — don't burn reasoning tokens
 
 # --- Copilot flow ---
 copilot:
-  max_tool_iterations: 8
+  max_tool_iterations: 16
   system_prompt: |
     You are Dummy AI, an SAP Basis operations copilot. You help SAP Basis operators
     understand the health, performance, and errors of the SAP systems you monitor.

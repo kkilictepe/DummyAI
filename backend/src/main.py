@@ -114,17 +114,17 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Dummy AI Backend", version="0.1.0", lifespan=lifespan)
 
     # Compile the Copilot graph once here (pure — no network I/O; clients are only touched at
-    # tool-invoke time via the module accessors the lifespan sets). Requires the Anthropic key to
+    # tool-invoke time via the module accessors the lifespan sets). Requires the OpenAI key to
     # construct the models, so we skip it (and /copilot returns 503) when the key is absent.
     app.state.copilot_graph = None
-    if settings.anthropic_api_key is not None:
+    if settings.openai_api_key is not None:
         try:
             app.state.copilot_graph = build_copilot_graph(settings)
             log.info("copilot_graph_compiled")
         except Exception as exc:
             log.error("copilot_graph_build_failed", error=str(exc))
     else:
-        log.warning("copilot_disabled", reason="missing_anthropic_api_key")
+        log.warning("copilot_disabled", reason="missing_openai_api_key")
 
     # Request-id first (inner), CORS added last so it wraps outermost.
     app.add_middleware(RequestIdMiddleware)
@@ -171,7 +171,7 @@ def create_app() -> FastAPI:
         if graph is None:
             raise HTTPException(
                 status_code=503,
-                detail="Copilot is not configured (missing ANTHROPIC_API_KEY).",
+                detail="Copilot is not configured (missing OPENAI_API_KEY).",
             )
         request_id = get_request_id() or str(uuid4())
         return StreamingResponse(

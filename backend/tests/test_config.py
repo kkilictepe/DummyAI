@@ -22,17 +22,26 @@ from src.config import (
 def test_config_yaml_is_loaded() -> None:
     s = get_settings()
     # Values come from config/config.yaml, not hardcoded defaults only.
-    assert s.llm.answer_model == "claude-sonnet-5"
-    assert s.llm.guard_model == "claude-haiku-4-5-20251001"
+    assert s.llm.answer_model == "gpt-5.5"
+    assert s.llm.guard_model == "gpt-5.4-mini"
     assert "http://localhost:5173" in s.cors.allow_origins
     assert s.elasticsearch.index_name == "sap-logs-*"
     assert "Markdown" in s.copilot.system_prompt
 
 
+def test_llm_reasoning_effort_and_budget_from_yaml() -> None:
+    s = get_settings()
+    # gpt-5.5 answerer reasons at its default depth; the guard runs 'minimal' for a snap verdict.
+    assert s.llm.answer_reasoning_effort is None
+    assert s.llm.guard_reasoning_effort == "minimal"
+    # max_completion_tokens budget leaves headroom for reasoning + a full Markdown answer.
+    assert s.llm.max_tokens == 8192
+
+
 def test_env_overrides_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LLM__ANSWER_MODEL", "claude-opus-4-8")
+    monkeypatch.setenv("LLM__ANSWER_MODEL", "gpt-4.1")
     reset_config_caches()
-    assert get_settings().llm.answer_model == "claude-opus-4-8"
+    assert get_settings().llm.answer_model == "gpt-4.1"
 
 
 def test_nested_section_key_override(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -42,14 +51,14 @@ def test_nested_section_key_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_secret_is_secretstr_and_masked(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret-123")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret-123")
     reset_config_caches()
     s = get_settings()
-    assert isinstance(s.anthropic_api_key, SecretStr)
-    assert s.anthropic_api_key.get_secret_value() == "sk-secret-123"
+    assert isinstance(s.openai_api_key, SecretStr)
+    assert s.openai_api_key.get_secret_value() == "sk-secret-123"
     # The raw secret must never appear in repr/str.
     assert "sk-secret-123" not in repr(s)
-    assert "sk-secret-123" not in str(s.anthropic_api_key)
+    assert "sk-secret-123" not in str(s.openai_api_key)
 
 
 def test_es_flat_secret_and_nested_config_do_not_collide(
@@ -130,7 +139,7 @@ def test_missing_config_dir_still_boots(tmp_path: Path, monkeypatch: pytest.Monk
     reset_config_caches()
 
     s = Settings()
-    assert s.llm.answer_model == "claude-sonnet-5"  # model default, not from YAML
+    assert s.llm.answer_model == "gpt-4o"  # model default, not from YAML
     assert s.environment == "development"
     assert s.cors.allow_origins == ["http://localhost:5173"]
 

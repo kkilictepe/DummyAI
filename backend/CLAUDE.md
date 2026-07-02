@@ -25,7 +25,9 @@ uv run mypy src                                    # type-check
 - `src/clients/`   — transport wrappers; one shared async instance each.
 - `src/tools/`     — LangChain `@tool`s; thin, call clients.
 - `src/agents/`    — agent factories returning compiled agents.
-- `src/flow/`      — LangGraph `StateGraph` orchestration; one flow per module.
+- `src/flow/`      — LangGraph `StateGraph` orchestration; one flow per module. **Creating or
+  changing a flow? Create/update its design doc at `docs/flows/<flow>.md` (repo-root `docs/`, not
+  under `backend/`) in the same change.** See [../docs/flows/copilot.md](../docs/flows/copilot.md).
 - `src/schemas.py` — shared Pydantic models (tool args + agent structured outputs).
 - `tests/`         — pytest, mirrors `src/`.
 

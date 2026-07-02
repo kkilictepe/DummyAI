@@ -2,9 +2,9 @@
 
 Streams one AG-UI turn against a running backend and prints each decoded event, so you can watch
 the RUN_STARTED -> TOOL_CALL_* -> TEXT_MESSAGE_* -> RUN_FINISHED sequence (or the refusal path)
-against a real Anthropic model + live Prometheus/Elasticsearch.
+against a real OpenAI model + live Prometheus/Elasticsearch.
 
-Prereqs: a running server with a real ANTHROPIC_API_KEY, e.g.
+Prereqs: a running server with a real OPENAI_API_KEY, e.g.
     uv run uvicorn src.main:app --reload --port 8000
 
 Usage (from backend/):

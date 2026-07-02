@@ -1,6 +1,6 @@
 """Guardrail node: classification wiring, message extraction, and the fail-open policy.
 
-The real ``ChatAnthropic`` guard is never constructed here — ``make_guardrail_node`` is fed a
+The real ``ChatOpenAI`` guard is never constructed here — ``make_guardrail_node`` is fed a
 fake runnable, so these tests are hermetic and exercise the node's own logic (extraction,
 error handling, verdict plumbing) rather than the model.
 """
@@ -52,7 +52,7 @@ async def test_no_user_message_is_blocked_without_calling_model() -> None:
 
 
 async def test_guard_error_fails_open() -> None:
-    node = make_guardrail_node(make_guard(error=RuntimeError("anthropic down")))
+    node = make_guardrail_node(make_guard(error=RuntimeError("openai down")))
     out = await node({"messages": [HumanMessage(content="How is memory on KBP?")]})
     # Fail-open: a transient guard failure allows the (trusted-operator) turn through, logged.
     assert out["guardrail"]["allowed"] is True

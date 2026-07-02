@@ -57,12 +57,21 @@ def _load_yaml(filename: str) -> dict[str, Any]:
 
 
 class LLMSettings(BaseModel):
-    """LLM model ids + generation knobs (non-secret)."""
+    """LLM model ids + generation knobs (non-secret). OpenAI models (override in config.yaml).
 
-    answer_model: str = "claude-sonnet-5"
-    guard_model: str = "claude-haiku-4-5-20251001"
+    ``reasoning_effort`` applies only to reasoning models (gpt-5 / o-series) and is forwarded by
+    the shared model builder only for those; ``None`` means "use the model's default effort".
+    ``temperature`` is honoured by non-reasoning models (gpt-4o) and ignored by gpt-5/o1 (which
+    only support their default); ``max_tokens`` maps to ``max_completion_tokens`` and, for a
+    reasoning model, is the **combined** reasoning + visible-output budget."""
+
+    answer_model: str = "gpt-4o"
+    guard_model: str = "gpt-4o-mini"
     temperature: float = 0.0
     max_tokens: int = 4096
+    # None -> model default effort; guard defaults to the cheapest/fastest for a snap verdict.
+    answer_reasoning_effort: str | None = None
+    guard_reasoning_effort: str | None = "minimal"
 
 
 class CopilotSettings(BaseModel):
@@ -118,8 +127,8 @@ class Settings(BaseSettings):
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str = "https://cloud.langfuse.com"
 
-    # --- LLM provider ---
-    anthropic_api_key: SecretStr | None = None
+    # --- LLM provider (OpenAI) ---
+    openai_api_key: SecretStr | None = None
 
     # --- non-secret app config (populated from config.yaml) ---
     llm: LLMSettings = Field(default_factory=LLMSettings)

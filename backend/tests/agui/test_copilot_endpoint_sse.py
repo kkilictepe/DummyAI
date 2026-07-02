@@ -43,7 +43,7 @@ def _wire_app(
         flow, "build_guardrail_runnable", lambda settings: make_guard(verdict=verdict)
     )
     monkeypatch.setattr(flow, "build_copilot_agent", lambda settings, tools: agent)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-dummy")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-test-dummy")
     reset_config_caches()
     return create_app(), agent
 
@@ -176,8 +176,8 @@ async def test_refusal_path_streams_text_and_no_tool_calls(
     assert text == REFUSAL_TEXT
 
 
-async def test_missing_anthropic_key_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The autouse fixture already dropped ANTHROPIC_API_KEY; do not set it -> graph not compiled.
+async def test_missing_openai_key_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The autouse fixture already dropped OPENAI_API_KEY; do not set it -> graph not compiled.
     reset_config_caches()
     app = create_app()
     assert app.state.copilot_graph is None

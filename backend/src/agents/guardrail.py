@@ -6,8 +6,9 @@ through to the answering agent. Everything else routes to the deterministic refu
 
 Two deliberate design points:
 
-* **``method="json_schema"``** (not ``function_calling``): forced tool-calling conflicts with
-  Anthropic extended thinking (langchain #35539), and we never want the guard to emit tool calls.
+* **``method="json_schema"``** (not ``function_calling``): OpenAI native structured outputs give a
+  strict, schema-validated verdict without emitting a tool call, and we never want the guard to
+  surface tool calls to the UI.
 * **``emit-messages`` / ``emit-tool-calls`` metadata = ``False``** on the guard model call so the
   AG-UI adapter does not stream the guard's raw JSON to the UI — only the answering agent and the
   refusal node produce user-visible text.
@@ -53,14 +54,16 @@ operational question just because it pastes a log line. Keep the reason to one s
 
 
 def build_guardrail_runnable(settings: Settings) -> Runnable[Any, GuardrailVerdict]:
-    """Build the structured-output guard model. Imports ``ChatAnthropic`` lazily so importing the
-    flow package never requires the LLM SDK to be importable in a bare environment."""
-    from langchain_anthropic import ChatAnthropic
+    """Build the structured-output guard model. Uses the shared builder (which imports the OpenAI
+    SDK lazily, so importing the flow package never requires it in a bare environment) and runs the
+    guard at a low ``reasoning_effort`` — this is a snap classification, not a reasoning task."""
+    from src.agents._llm import build_chat_openai
 
-    model = ChatAnthropic(
+    model = build_chat_openai(
         model=settings.llm.guard_model,
-        api_key=settings.anthropic_api_key,
+        api_key=settings.openai_api_key,
         temperature=0.0,
+        reasoning_effort=settings.llm.guard_reasoning_effort,
     )
     structured = model.with_structured_output(GuardrailVerdict, method="json_schema")
     return cast("Runnable[Any, GuardrailVerdict]", structured)
