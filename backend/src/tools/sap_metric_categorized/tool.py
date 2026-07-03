@@ -23,10 +23,13 @@ from pydantic import BaseModel, Field
 
 from src.clients import get_prometheus_client
 from src.clients.prometheus import MetricData
+from src.logging import get_logger
 from src.tools._catalog import MetricCatalog
 from src.tools._time import resolve_range
 from src.tools.sap_metric_categorized.context_validation import validate_monitoring_context
 from src.tools.sap_metric_categorized.summarizer import detect_anomalies, summarize_series
+
+_log = get_logger(__name__)
 
 Category = Literal[
     "sap_resource_usage",
@@ -81,6 +84,12 @@ def _build_promql(prometheus_name: str, system_id: str, monitoring_context: str 
 
 
 def _error(system_id: str, category: str, message: str) -> dict[str, Any]:
+    _log.warning(
+        "sap_metric_categorized_error",
+        system_id=system_id,
+        category=category,
+        error=message,
+    )
     return {
         "timestamp": datetime.now(UTC).isoformat(),
         "system_id": system_id,
@@ -143,6 +152,12 @@ async def tool_sap_metric_categorized(
     if monitoring_context:
         invalid = await validate_monitoring_context(client, system_id, monitoring_context)
         if invalid is not None:
+            _log.warning(
+                "invalid_monitoring_context_filter",
+                system_id=system_id,
+                category=category,
+                monitoring_context=monitoring_context,
+            )
             return {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "system_id": system_id,
@@ -158,9 +173,17 @@ async def tool_sap_metric_categorized(
     for key in metric_keys:
         response = responses.get(key)
         if response is None:
+            _log.warning("metric_query_dropped", system_id=system_id, category=category, metric=key)
             summaries[key] = {"status": "error", "error": "query dropped"}
             continue
         if not response.success:
+            _log.warning(
+                "metric_query_failed",
+                system_id=system_id,
+                category=category,
+                metric=key,
+                error=response.error_message or "query failed",
+            )
             summaries[key] = {"status": "error", "error": response.error_message or "query failed"}
             continue
         series: list[MetricData] = client.parse_metric_data(response)
@@ -220,6 +243,16 @@ async def tool_sap_metric_categorized(
     if not monitoring_context and metrics_ok and app_servers:
         response_body["available_application_servers"] = sorted(app_servers)
 
+    _log.debug(
+        "sap_metric_categorized_completed",
+        system_id=system_id,
+        category=category,
+        metrics_queried=len(metric_keys),
+        metrics_successful=len(metrics_ok),
+        metrics_no_data=len(metrics_no_data),
+        metrics_failed=len(metrics_failed),
+        anomalies=len(anomalies),
+    )
     return response_body
 
 

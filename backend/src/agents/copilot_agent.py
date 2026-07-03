@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentState, dynamic_prompt
 
+from src.logging import get_logger
 from src.prompts.copilot import COPILOT_SYSTEM_PROMPT
 
 if TYPE_CHECKING:
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
 
     from src.config import Settings
+
+_log = get_logger(__name__)
 
 
 class CopilotAgentState(AgentState):
@@ -63,10 +66,16 @@ def build_copilot_agent(
         system_ids = request.state.get("system_ids")
         return f"{COPILOT_SYSTEM_PROMPT}\n\n{_scope_line(system_ids)}"
 
-    return create_agent(
+    agent = create_agent(
         model=model,
         tools=list(tools),
         middleware=[scoped_prompt],
         state_schema=CopilotAgentState,
         name="copilot_agent",
     )
+    _log.debug(
+        "copilot_agent_built",
+        model=settings.llm.answer_model,
+        tool_count=len(tools),
+    )
+    return agent

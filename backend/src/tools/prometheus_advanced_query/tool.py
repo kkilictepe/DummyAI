@@ -16,6 +16,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 from src.clients import get_prometheus_client
+from src.logging import get_logger
 from src.tools.prometheus_advanced_query.engine import build_query_engine
 from src.tools.prometheus_advanced_query.schemas import (
     CorrelationInput,
@@ -23,6 +24,8 @@ from src.tools.prometheus_advanced_query.schemas import (
     QueryType,
     TimeRangeInput,
 )
+
+_log = get_logger(__name__)
 
 _DESCRIPTION = """Query Prometheus metrics with advanced analysis for SAP system monitoring.
 
@@ -63,6 +66,12 @@ async def prometheus_metrics_advance_query(
     system_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute an advanced Prometheus query and return structured analysis (see the description)."""
+    _log.debug(
+        "advanced_query_tool_called",
+        query_type=query_type.value,
+        metric_count=len(metric_names),
+        system_id=system_id,
+    )
     folded_labels = dict(labels or {})
     if system_id:
         folded_labels["system_id"] = system_id
@@ -79,4 +88,11 @@ async def prometheus_metrics_advance_query(
     engine = build_query_engine()
     client = get_prometheus_client()
     result = await engine.run(input_data, client)
+    if result.status == "error":
+        _log.warning(
+            "advanced_query_tool_error",
+            query_type=query_type.value,
+            system_id=system_id,
+            error=result.error,
+        )
     return result.model_dump(mode="json")

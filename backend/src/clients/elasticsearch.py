@@ -13,8 +13,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.logging import get_logger
+
 if TYPE_CHECKING:
     from src.config import Settings
+
+_log = get_logger(__name__)
 
 
 class ElasticsearchClient:
@@ -52,20 +56,46 @@ class ElasticsearchClient:
     # ------------------------------------------------------------------
 
     async def search(self, index: str, body: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        response = await self._client.search(index=index, body=body, **kwargs)
-        return dict(response)
+        try:
+            response = await self._client.search(index=index, body=body, **kwargs)
+        except Exception as exc:
+            _log.error(
+                "elasticsearch_request_failed", operation="search", index=index, error=str(exc)
+            )
+            raise
+        result = dict(response)
+        _log.debug(
+            "elasticsearch_search_ok",
+            index=index,
+            hits=len(result.get("hits", {}).get("hits", [])),
+        )
+        return result
 
     async def count(self, index: str, body: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        response = await self._client.count(index=index, body=body, **kwargs)
+        try:
+            response = await self._client.count(index=index, body=body, **kwargs)
+        except Exception as exc:
+            _log.error(
+                "elasticsearch_request_failed", operation="count", index=index, error=str(exc)
+            )
+            raise
         return dict(response)
 
     async def msearch(self, body: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
-        response = await self._client.msearch(body=body, **kwargs)
+        try:
+            response = await self._client.msearch(body=body, **kwargs)
+        except Exception as exc:
+            _log.error("elasticsearch_request_failed", operation="msearch", error=str(exc))
+            raise
         return dict(response)
 
     async def health(self) -> dict[str, Any]:
         """Return cluster health (used by ``/health?deep=1``)."""
-        response = await self._client.cluster.health()
+        try:
+            response = await self._client.cluster.health()
+        except Exception as exc:
+            _log.error("elasticsearch_request_failed", operation="health", error=str(exc))
+            raise
         return dict(response)
 
     async def close(self) -> None:

@@ -161,6 +161,7 @@ async def _run_aggregation(
     if filter_must_dict:
         field_err = validate_field_filters(filter_must_dict, profile)
         if field_err is not None:
+            _log.warning("es_aggregation_invalid_field_filter", system_id=system_id)
             return json.dumps(dict(field_err), default=str)
 
     # Govern the aggregation `field` exactly like must_match / fields_to_return: a terms agg returns
@@ -171,6 +172,7 @@ async def _run_aggregation(
     if field:
         agg_field_err = validate_projection_fields([field], profile)
         if agg_field_err is not None:
+            _log.warning("es_aggregation_invalid_agg_field", system_id=system_id, field=field)
             return json.dumps(dict(agg_field_err), default=str)
 
     try:

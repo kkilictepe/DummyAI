@@ -114,12 +114,17 @@ class QueryEngine:
             elif query_type == QueryType.CORRELATION:
                 result = await self._execute_correlation(input_data, client)
             else:  # pragma: no cover - QueryType is exhaustive
+                _log.error("advanced_query_unknown_query_type", query_type=str(query_type))
                 return self._error_response(f"Unknown query type: {query_type}", start_time)
 
             result.metadata["execution_time_ms"] = round((perf_counter() - start_time) * 1000, 2)
             return result
         except Exception:
-            _log.exception("advanced_query_unexpected_error")
+            _log.exception(
+                "advanced_query_unexpected_error",
+                query_type=input_data.query_type.value,
+                system_id=input_data.system_id,
+            )
             return self._error_response(
                 "Internal error while executing the advanced query.", start_time
             )
@@ -296,6 +301,7 @@ class QueryEngine:
 
         correlation_params = input_data.correlation
         if correlation_params is None:  # pragma: no cover - guarded by validation
+            _log.error("advanced_query_correlation_params_missing")
             return self._error_response("Correlation parameters required", perf_counter())
 
         correlations = self._correlation.compute_all_correlations(

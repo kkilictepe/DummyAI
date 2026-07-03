@@ -21,8 +21,12 @@ from difflib import get_close_matches
 from time import monotonic
 from typing import TYPE_CHECKING, Any
 
+from src.logging import get_logger
+
 if TYPE_CHECKING:
     from src.clients.prometheus import PrometheusClient
+
+_log = get_logger(__name__)
 
 _CACHE_TTL_SECONDS = 300.0
 
@@ -82,6 +86,7 @@ async def validate_monitoring_context(
     """
     available = await get_monitoring_contexts(client, system_id)
     if not available:
+        _log.debug("monitoring_context_validation_skipped", system_id=system_id)
         return None  # unverifiable -> skip (fail-open)
     if value in available:
         return None

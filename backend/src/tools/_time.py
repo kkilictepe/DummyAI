@@ -16,6 +16,10 @@ import math
 import re
 from datetime import UTC, datetime
 
+from src.logging import get_logger
+
+_log = get_logger(__name__)
+
 # ``<int><unit>`` with unit in s/m/h/d/w (e.g. "30s", "5m", "3h", "7d", "2w").
 _DURATION_RE = re.compile(r"^\s*(\d+)\s*([smhdw])\s*$", re.IGNORECASE)
 _UNIT_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
@@ -56,7 +60,7 @@ def _coerce_end(end: str) -> int:
     try:
         value = float(text)
     except ValueError:
-        pass
+        _log.debug("end_timestamp_not_numeric", end=end)
     else:
         if not math.isfinite(value):
             raise ValueError(f"Invalid end timestamp {end!r}: must be a finite number.")
