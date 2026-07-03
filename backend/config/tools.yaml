@@ -1,24 +1,9 @@
 # =============================================================================
-# !!! IMPORTANT: COLD-START SEED FILE ONLY — NOT THE SOURCE OF TRUTH !!!
+# Tools configuration — per-tool behaviour settings for the AI-agent tools.
 # =============================================================================
-# This YAML file is used ONLY for the initial database seeding on first start.
-# The REAL, LIVE configuration is stored in the DATABASE (config_* tables) and
-# is managed via the Admin UI or the config API.
-#
-# ANY CHANGES TO THIS FILE AFTER THE FIRST INITIALIZATION WILL BE IGNORED.
-# The system reads exclusively from the DB — this file is never re-read.
-#
-# To update configuration after initialization:
-#   Admin UI  →  Config section
-#   API       →  await set_config(domain, data)
-#                in src/config/config_service.py
-# =============================================================================
-
-# Tools Configuration
-#
-# Tool-level behavior settings for AI agent tools.
-# Connection details (URLs, tokens) are inherited from config/client.yaml.
-# See .env.sample for secrets.
+# Committed, non-secret config read directly by src/config.py (get_tools_config); in this repo the
+# YAML *is* the source of truth (there is no seeding DB). Secrets (URLs, tokens, API keys) live
+# only in .env — never here. See backend/CLAUDE.md.
 
 # ---------------------------------------------------------------------------
 # Prometheus advanced query tool
@@ -46,12 +31,6 @@ prometheus_deterministic_analysis:
 tool_sap_metric_categorized_rootis:
   metric_catalog_path: config/metric_catalog.yaml
   metric_profiles_path: config/metric_profiles.yaml
-
-# ---------------------------------------------------------------------------
-# SAP health check tool
-# ---------------------------------------------------------------------------
-tool_sap_info_health_check_rootis:
-  health_check_profiles_path: config/health_check_profiles.yaml
 
 # ---------------------------------------------------------------------------
 # Embedding metric retrieval (Phase 6) — semantic backend for `metric_lookup`.

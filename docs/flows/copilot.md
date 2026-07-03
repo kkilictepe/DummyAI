@@ -15,10 +15,24 @@ the UI in real time over the **AG-UI protocol** on a single SSE response.
 ## Capabilities
 
 - **Grounded operational Q&A** — never invents metric values, thresholds, or log lines; if a tool
-  returns no data it says so plainly.
+  returns no data it says so plainly, and never deflects to a manual T-code check ("use ST06") when
+  the data is reachable through a tool.
+- **Clarify before guessing** — when a required parameter (which SAP system, which application
+  server) is missing or ambiguous, the copilot asks a specific clarifying question rather than
+  guessing; the one exception is a single in-scope system, which it uses without asking.
+- **Default time window** — when the operator gives no time window, queries default to the **last
+  5 minutes (`5m`)** and the answer states that the default was used.
 - **Metric analysis** — per-category SAP metric summaries (min/max/avg/current/percentiles/trend),
-  anomaly detection against catalog thresholds, app-server discovery, and advanced PromQL
+  anomaly detection against catalog thresholds (reported with **severity**: critical / warning /
+  info, never just presence), app-server discovery, and advanced PromQL
   (instant/range/anomaly/baseline/correlation).
+- **Metric provenance** — after presenting metric results the copilot lists the metrics the report
+  is based on, and separately calls out any that returned no data or failed (the categorized tool
+  surfaces `context.metrics_successful` / `metrics_with_issues` for exactly this footer).
+- **Health-question composition** — broad "how is `<system>` doing / is it healthy" questions are
+  answered by composing tools (start with the `system_overview` category, run `anomaly_check` on
+  anything suspicious, cluster recent errors via `error_and_warnings` / `es_cluster_errors`), not a
+  dedicated health-check tool.
 - **Log analysis** — field-scoped search, aggregations, window comparison, drill-down around an
   anchor event, error clustering, and a guarded raw-query escape hatch.
 - **Natural-language metric discovery** — translates a phrase ("high CPU", "ABAP short dumps")
@@ -118,7 +132,7 @@ tool can never touch a secret.
 
 | Tool | Source | What it does |
 |------|--------|--------------|
-| `tool_sap_metric_categorized` | [`sap_metric_categorized/`](../../backend/src/tools/sap_metric_categorized/) | Expand a SAP metric **category/profile** to its catalog metrics, query Prometheus, summarize (min/max/avg/current/p50/p90/p95/p99/trend), flag anomalies vs `alert_threshold`, and discover app servers. |
+| `tool_sap_metric_categorized` | [`sap_metric_categorized/`](../../backend/src/tools/sap_metric_categorized/) | Expand a SAP metric **category/profile** to its catalog metrics, query Prometheus, summarize (min/max/avg/current/p50/p90/p95/p99/trend), flag anomalies vs `alert_threshold`, and discover app servers. A pinned `monitoring_context` is **validated live** against the system's Prometheus label values ([`context_validation.py`](../../backend/src/tools/sap_metric_categorized/context_validation.py), TTL-cached): an unknown value returns `status="invalid_label_filter"` with the `available` values + a closest-match `suggestion` and runs no range query, while an **unverifiable** value (empty discovery) is **fail-open** — validation may only add a helpful error, never break the tool. |
 | `metric_lookup` | [`metric_lookup/`](../../backend/src/tools/metric_lookup/) | Translate a natural-language phrase into ranked catalog metrics (`prometheus_names`). Deterministic catalog resolver by default; optional semantic/embedding resolver behind a config flag (same `MetricLookupResolver` seam). |
 | `prometheus_metrics_advance_query` | [`prometheus_advanced_query/`](../../backend/src/tools/prometheus_advanced_query/) | Advanced PromQL engine: `instant` / `range` / `anomaly_check` (z-score) / `baseline_compare` / `correlation` (pure-python Pearson). |
 | `list_sap_systems` | [`systems.py`](../../backend/src/tools/systems.py) | List managed systems — **`name` / `display_name` / `environment` only**. Never exposes host / user / password / sysnr / client. |
@@ -163,6 +177,36 @@ the answering agent's trusted system prompt via the scope channel. The base prom
 [`backend/src/prompts/copilot.py`](../../backend/src/prompts/copilot.py). The resolved list is
 injected into graph state, reaches the agent subgraph's `CopilotAgentState`, and a
 `dynamic_prompt` middleware appends the scope line to the committed base prompt at invoke time.
+
+---
+
+## System prompt contract
+
+The answering agent's base prompt is the `COPILOT_SYSTEM_PROMPT` constant in
+[`backend/src/prompts/copilot.py`](../../backend/src/prompts/copilot.py); the `dynamic_prompt`
+middleware appends the per-request scope line (`\n\n<scope line>`) and nothing else is injected at
+runtime.
+
+The prompt encodes these behavioural rules — each has a matching capability above and is pinned by
+a distinctive substring in
+[`tests/prompts/test_copilot_prompt.py`](../../backend/tests/prompts/test_copilot_prompt.py) (edit
+the prompt and that test in the same change):
+
+- **No manual deflections** — never tell the operator to check something manually (`ST06`, `SM50`,
+  `DBACOCKPIT`); if the data is tool-reachable, call the tool and report the result.
+- **Ask for missing/ambiguous parameters** — request the specific missing system / application
+  server instead of guessing; the sole exception is a single in-scope system.
+- **Default window `5m`** — when no time window is given, use the last 5 minutes and say so.
+- **Metric provenance footer** — after metric results, state which metrics the report is based on,
+  and separately list any that returned no data or failed.
+- **Severity-graded anomalies** — always report each anomaly's severity (critical / warning /
+  info), not merely that one exists.
+- **No alert store** — the prompt states there is no ticketing / alert-management store, so the
+  agent does not offer to look up alerts or incidents (DummyAI has no such backend).
+
+The old application's JSON envelope / `action` field / complexity tiers are intentionally **not**
+ported: the guardrail node ([`agents/guardrail.py`](../../backend/src/agents/guardrail.py)) plus
+streamed Markdown replace them.
 
 ---
 
@@ -301,6 +345,7 @@ Env overrides YAML; nested keys use `SECTION__KEY` (e.g. `LLM__ANSWER_MODEL`).
 | Guard model error | **Fail-open**: turn allowed as `sap_ops` (logged). |
 | Tool / node error mid-stream | Terminal **`RUN_ERROR`** with a generic message; real error logged. |
 | Prometheus/ES unavailable | Tool returns a leak-free error; the agent reports "no data" rather than inventing values. |
+| Bare follow-up to a clarifying question | **Known limitation.** The guardrail classifies only the *latest* user message, so a terse answer to the copilot's clarifying question (e.g. just `KHP`) can be misclassified as off-topic and refused. The prompt reduces the need to ask (single in-scope system → no question), but the guardrail itself is unchanged here — follow-up item. |
 
 ---
 

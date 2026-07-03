@@ -25,6 +25,7 @@ from src.clients import get_prometheus_client
 from src.clients.prometheus import MetricData
 from src.tools._catalog import MetricCatalog
 from src.tools._time import resolve_range
+from src.tools.sap_metric_categorized.context_validation import validate_monitoring_context
 from src.tools.sap_metric_categorized.summarizer import detect_anomalies, summarize_series
 
 Category = Literal[
@@ -103,6 +104,10 @@ async def tool_sap_metric_categorized(
     Returns per-metric summaries (min/max/avg/current/percentiles/trend), anomalies vs the
     catalog alert thresholds, and — when no ``monitoring_context`` was pinned —
     ``available_application_servers`` for optional per-server drill-down.
+
+    If a pinned ``monitoring_context`` does not exist for the system, returns
+    ``status="invalid_label_filter"`` with the ``available`` values and a ``suggestion`` and runs
+    no range queries: present the available values to the operator and ask which to use.
     """
     if not system_id:
         return _error(system_id, category, "system_id is required")
@@ -130,6 +135,22 @@ async def tool_sap_metric_categorized(
             queries.append((key, _build_promql(prometheus_name, system_id, monitoring_context)))
 
     client = get_prometheus_client()
+
+    # When the caller pinned a monitoring_context, validate it against the live label values so a
+    # typo returns a helpful suggestion (invalid_label_filter) instead of a silent no_data. Runs
+    # after the cheap local checks and before any range query. Fail-open: an unverifiable context
+    # (empty discovery) proceeds untouched.
+    if monitoring_context:
+        invalid = await validate_monitoring_context(client, system_id, monitoring_context)
+        if invalid is not None:
+            return {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "system_id": system_id,
+                "category": category,
+                "status": "invalid_label_filter",
+                **invalid,
+            }
+
     responses = await client.query_multiple(queries, start_ts, end_ts, step)
 
     summaries: dict[str, dict[str, Any]] = {}

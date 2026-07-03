@@ -158,6 +158,25 @@ async def test_label_values_success_and_error() -> None:
 
 
 @respx.mock
+async def test_label_values_with_match_encodes_matchers() -> None:
+    # A series selector is sent as a repeated match[] param so Prometheus scopes the label values.
+    route = respx.get(f"{BASE}/api/v1/label/monitoring_context/values").mock(
+        return_value=httpx.Response(200, json={"status": "success", "data": ["APP01", "APP02"]})
+    )
+    client = _client()
+    values = await client.label_values("monitoring_context", match=['{system_id="KHP"}'])
+    assert values == ["APP01", "APP02"]
+    # httpx encodes the list as repeated match[]=<selector> params (decoded back here).
+    params = route.calls.last.request.url.params
+    assert params.get_list("match[]") == ['{system_id="KHP"}']
+
+    # error path still returns [] (returns-[]-on-error contract preserved with match[]).
+    route.mock(return_value=httpx.Response(500, text="boom"))
+    assert await client.label_values("monitoring_context", match=['{system_id="KHP"}']) == []
+    await client.aclose()
+
+
+@respx.mock
 async def test_query_multiple_keys_by_name() -> None:
     respx.get(f"{BASE}/api/v1/query_range").mock(
         return_value=httpx.Response(
