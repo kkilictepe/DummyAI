@@ -6,7 +6,8 @@ The Prometheus boundary is stubbed by subclassing :class:`PrometheusClient` and 
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import json
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
@@ -14,6 +15,7 @@ import pytest
 from src.clients import close_clients, set_clients
 from src.clients.prometheus import PrometheusClient, PrometheusResponse
 from src.tools.sap_metric_categorized import tool_sap_metric_categorized as sap_tool
+from src.tools.sap_metric_categorized.context_validation import reset_context_cache
 
 
 class _FakeES:
@@ -22,15 +24,24 @@ class _FakeES:
 
 
 class _FakeProm(PrometheusClient):
-    """Real client (for parse_metric_data) with a canned ``query_multiple``."""
+    """Real client (for parse_metric_data) with a canned ``query_multiple`` and ``label_values``.
 
-    def __init__(self, responses: dict[str, PrometheusResponse]) -> None:
+    ``contexts`` are the monitoring_context label values the fake reports for the
+    monitoring_context validation path; ``label_calls`` records each discovery call so tests can
+    assert the TTL cache (one fetch across repeated calls) and that no query ran on invalid input.
+    """
+
+    def __init__(
+        self, responses: dict[str, PrometheusResponse], contexts: list[str] | None = None
+    ) -> None:
         super().__init__("http://prom.test:9090")
         self._responses = responses
+        self._contexts = list(contexts) if contexts is not None else []
         self.queries: list[tuple[str, str]] = []
         self.start: str | None = None
         self.end: str | None = None
         self.step: str | None = None
+        self.label_calls: list[tuple[str, list[str] | None]] = []
 
     async def query_multiple(
         self,
@@ -42,6 +53,12 @@ class _FakeProm(PrometheusClient):
         self.queries = list(queries)
         self.start, self.end, self.step = start, end, step
         return {name: self._responses[name] for name, _ in queries if name in self._responses}
+
+    async def label_values(
+        self, label: str = "__name__", *, match: list[str] | None = None
+    ) -> list[str]:
+        self.label_calls.append((label, match))
+        return list(self._contexts)
 
 
 def _matrix(
@@ -59,13 +76,24 @@ def _matrix(
     )
 
 
+@pytest.fixture(autouse=True)
+def _clear_context_cache() -> Iterator[None]:
+    """The monitoring_context discovery cache is module-level; clear it around every test so the
+    TTL cache from one case never leaks into the next."""
+    reset_context_cache()
+    yield
+    reset_context_cache()
+
+
 @pytest.fixture
 async def register() -> AsyncIterator[Any]:
     """Register a fake Prometheus client for the tool to fetch via get_prometheus_client()."""
     created: dict[str, _FakeProm] = {}
 
-    def _register(responses: dict[str, PrometheusResponse]) -> _FakeProm:
-        fake = _FakeProm(responses)
+    def _register(
+        responses: dict[str, PrometheusResponse], contexts: list[str] | None = None
+    ) -> _FakeProm:
+        fake = _FakeProm(responses, contexts)
         set_clients(fake, _FakeES())  # type: ignore[arg-type]
         created["fake"] = fake
         return fake
@@ -297,3 +325,129 @@ async def test_label_values_are_promql_escaped(register: Any) -> None:
     assert (
         fake.queries[0][1] == 'sap_application_cpu_utilisation_percent{system_id="KHP\\"} evil{"}'
     )
+
+
+# ---------------------------------------------------------------------------
+# monitoring_context live validation
+# ---------------------------------------------------------------------------
+
+
+async def test_invalid_monitoring_context_returns_suggestion_without_querying(
+    register: Any,
+) -> None:
+    fake = register(
+        # data is present, but a bad context must short-circuit BEFORE any range query runs
+        {
+            "sap_application_cpu_utilisation": _matrix(
+                "sap_application_cpu_utilisation_percent", "KHP", _RAMP, "KZCS4APP1"
+            )
+        },
+        contexts=["KZCS4APP1", "KZCS4APP2"],
+    )
+    result = await sap_tool.ainvoke(
+        {
+            "system_id": "KHP",
+            "category": "cpu_overview",
+            "time_range": "1h",
+            "monitoring_context": "KZCS4AP1",  # typo: missing a 'P'
+        }
+    )
+
+    assert result["status"] == "invalid_label_filter"
+    assert result["system_id"] == "KHP"
+    assert result["category"] == "cpu_overview"
+    detail = result["invalid_filters"][0]
+    assert detail["label"] == "monitoring_context"
+    assert detail["provided"] == "KZCS4AP1"
+    assert detail["available"] == ["KZCS4APP1", "KZCS4APP2"]
+    assert detail["suggestion"] == "KZCS4APP1"
+    assert "KZCS4APP1" in result["error"]
+    # no range queries ran (the whole point — a typo must not degrade to silent no_data)
+    assert fake.queries == []
+    # exactly one scoped discovery call happened
+    assert fake.label_calls == [("monitoring_context", ['{system_id="KHP"}'])]
+
+
+async def test_valid_monitoring_context_proceeds(register: Any) -> None:
+    fake = register(
+        {
+            "sap_application_cpu_utilisation": _matrix(
+                "sap_application_cpu_utilisation_percent", "KHP", _RAMP, "KHP_APP01"
+            )
+        },
+        contexts=["KHP_APP01", "KHP_APP02"],
+    )
+    result = await sap_tool.ainvoke(
+        {
+            "system_id": "KHP",
+            "category": "cpu_overview",
+            "time_range": "1h",
+            "monitoring_context": "KHP_APP01",
+        }
+    )
+
+    assert result["status"] == "success"
+    # a valid context is applied to the selector and the range queries run
+    assert dict(fake.queries)["sap_application_cpu_utilisation"] == (
+        'sap_application_cpu_utilisation_percent{system_id="KHP", monitoring_context="KHP_APP01"}'
+    )
+
+
+async def test_unverifiable_monitoring_context_fails_open(register: Any) -> None:
+    # Empty discovery (Prometheus down / label absent) -> validation is skipped, tool proceeds.
+    fake = register(
+        {
+            "sap_application_cpu_utilisation": _matrix(
+                "sap_application_cpu_utilisation_percent", "KHP", _RAMP, "KHP_APP01"
+            )
+        },
+        contexts=[],
+    )
+    result = await sap_tool.ainvoke(
+        {
+            "system_id": "KHP",
+            "category": "cpu_overview",
+            "time_range": "1h",
+            "monitoring_context": "DOES_NOT_MATTER",
+        }
+    )
+
+    assert result["status"] == "success"
+    assert fake.queries  # proceeded to range queries despite an unverifiable context
+
+
+async def test_invalid_label_filter_payload_is_json_safe(register: Any) -> None:
+    register({}, contexts=["APP1", "APP2"])
+    result = await sap_tool.ainvoke(
+        {
+            "system_id": "KHP",
+            "category": "cpu_overview",
+            "time_range": "1h",
+            "monitoring_context": "APPX",
+        }
+    )
+    assert result["status"] == "invalid_label_filter"
+    # browser-visible via TOOL_CALL_RESULT -> must round-trip through JSON (no NaN/Inf/custom types)
+    round_tripped = json.loads(json.dumps(result))
+    assert round_tripped["invalid_filters"][0]["provided"] == "APPX"
+
+
+async def test_context_discovery_is_cached_within_ttl(register: Any) -> None:
+    fake = register(
+        {
+            "sap_application_cpu_utilisation": _matrix(
+                "sap_application_cpu_utilisation_percent", "KHP", _RAMP, "KHP_APP01"
+            )
+        },
+        contexts=["KHP_APP01"],
+    )
+    args = {
+        "system_id": "KHP",
+        "category": "cpu_overview",
+        "time_range": "1h",
+        "monitoring_context": "KHP_APP01",
+    }
+    await sap_tool.ainvoke(args)
+    await sap_tool.ainvoke(args)
+    # discovery hit Prometheus once; the second call was served from the TTL cache
+    assert len(fake.label_calls) == 1

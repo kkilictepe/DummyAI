@@ -114,14 +114,21 @@ class PrometheusClient:
         }
         return await self._execute_query("/api/v1/query_range", params)
 
-    async def label_values(self, label: str = "__name__") -> list[str]:
+    async def label_values(
+        self, label: str = "__name__", *, match: list[str] | None = None
+    ) -> list[str]:
         """Fetch distinct values of ``label`` (default: every metric name).
 
-        Maps to ``GET /api/v1/label/<label>/values``. Used for app-server discovery.
-        Returns ``[]`` on any transport/parse error rather than raising.
+        Maps to ``GET /api/v1/label/<label>/values``. Used for app-server discovery and
+        ``monitoring_context`` validation. ``match`` is an optional list of PromQL series
+        selectors (e.g. ``['{system_id="KHP"}']``) sent as repeated ``match[]`` params so the
+        returned values are scoped to those series (Prometheus >= 2.24; httpx encodes the list as
+        ``match[]=<a>&match[]=<b>`` natively). Returns ``[]`` on any transport/parse error rather
+        than raising.
         """
+        params = {"match[]": match} if match else None
         try:
-            response = await self._client.get(f"/api/v1/label/{label}/values")
+            response = await self._client.get(f"/api/v1/label/{label}/values", params=params)
         except httpx.HTTPError:
             return []
         try:
