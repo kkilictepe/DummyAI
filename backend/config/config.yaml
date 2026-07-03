@@ -16,9 +16,9 @@ llm:
   # Maps to max_completion_tokens. For a reasoning model this is the COMBINED reasoning + visible
   # output budget, so keep headroom or long answers truncate (finish_reason=length).
   max_tokens: 8192
-  # reasoning_effort: minimal | low | medium | high (reasoning models only). null = model default.
+  # reasoning_effort: none | low | medium | high | xhigh (reasoning models only). null = model default.
   answer_reasoning_effort: null      # let the answerer reason at its default depth
-  guard_reasoning_effort: minimal    # snap yes/no classification — don't burn reasoning tokens
+  guard_reasoning_effort: none       # snap yes/no classification — don't burn reasoning tokens
 
 # --- Copilot flow ---
 copilot:

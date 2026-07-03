@@ -100,7 +100,7 @@ API constraints the gpt-4o family didn't, handled as follows:
 |------|-----------|--------------------------------|
 | `temperature` | `llm.temperature` | Only the model default is allowed; `langchain-openai` **drops** a custom value for `gpt-5*` (non-chat) / `o1`, so the configured `0.0` is honoured by gpt-4o but ignored by gpt-5.5 (no 400). |
 | `max_tokens` | `llm.max_tokens` | Mapped to **`max_completion_tokens`**, a **combined reasoning + visible-output** budget — keep headroom (default `8192`) or long answers truncate (`finish_reason=length`). |
-| `reasoning_effort` | `llm.answer_reasoning_effort` / `llm.guard_reasoning_effort` | `minimal`/`low`/`medium`/`high`; **reasoning models only** — the builder forwards it **only** when the target model is a reasoning model (`is_reasoning_model`), so a swap to gpt-4o can't 400 on an unsupported param. `null` = model default. |
+| `reasoning_effort` | `llm.answer_reasoning_effort` / `llm.guard_reasoning_effort` | `none`/`low`/`medium`/`high`/`xhigh`; **reasoning models only** — the builder forwards it **only** when the target model is a reasoning model (`is_reasoning_model`), so a swap to gpt-4o can't 400 on an unsupported param. Note the value must be valid for the *specific* reasoning generation (newer GPT-5 dropped `minimal` in favour of `none`); an unsupported value 400s and the guard **fails open**. `null` = model default. |
 
 `gpt-5.5` / `gpt-5.4-mini` resolve to OpenAI's **Chat Completions API** (only the `*-pro` variants
 force the Responses API), which is where `method="json_schema"` structured output and

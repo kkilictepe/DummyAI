@@ -26,12 +26,12 @@ def test_is_reasoning_model_detects_gpt5_and_o_series() -> None:
 
 def test_reasoning_effort_forwarded_only_for_reasoning_models() -> None:
     reasoning = build_chat_openai(
-        model="gpt-5.4-mini", api_key=SecretStr("sk-x"), reasoning_effort="minimal"
+        model="gpt-5.4-mini", api_key=SecretStr("sk-x"), reasoning_effort="none"
     )
-    assert reasoning.reasoning_effort == "minimal"
+    assert reasoning.reasoning_effort == "none"
     # Forwarding reasoning_effort to gpt-4o would 400 server-side, so the builder must drop it.
     non_reasoning = build_chat_openai(
-        model="gpt-4o", api_key=SecretStr("sk-x"), reasoning_effort="minimal"
+        model="gpt-4o", api_key=SecretStr("sk-x"), reasoning_effort="none"
     )
     assert non_reasoning.reasoning_effort is None
 

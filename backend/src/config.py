@@ -71,7 +71,7 @@ class LLMSettings(BaseModel):
     max_tokens: int = 4096
     # None -> model default effort; guard defaults to the cheapest/fastest for a snap verdict.
     answer_reasoning_effort: str | None = None
-    guard_reasoning_effort: str | None = "minimal"
+    guard_reasoning_effort: str | None = "none"
 
 
 class CopilotSettings(BaseModel):
