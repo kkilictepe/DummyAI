@@ -78,6 +78,7 @@ class PrometheusClient:
         *,
         token: str | None = None,
         org_id: str | None = None,
+        extra_headers: dict[str, str] | None = None,
         timeout: float = 30.0,
     ) -> None:
         self._base_url = base_url.rstrip("/")
@@ -86,6 +87,10 @@ class PrometheusClient:
             headers["Authorization"] = f"Bearer {token}"
         if org_id:
             headers["X-Scope-OrgID"] = org_id
+        # Deployment-specific gateway headers (e.g. the Portakal proxy's ``X-Portakal-Token``).
+        # Applied last so a deployment can override a derived header if it must.
+        if extra_headers:
+            headers.update(extra_headers)
         self._client = httpx.AsyncClient(base_url=self._base_url, headers=headers, timeout=timeout)
 
     async def aclose(self) -> None:
@@ -321,9 +326,24 @@ class PrometheusClient:
 
 
 def build_prometheus_client(settings: Settings) -> PrometheusClient:
-    """Construct the shared client from settings (called by the lifespan)."""
+    """Construct the shared client from settings (called by the lifespan).
+
+    Mirrors the reference deployment's auth exactly: the SAP Prometheus sits behind a Portakal
+    proxy that requires **three** headers together, each 401-ing if absent —
+    ``Authorization: Bearer`` (``prometheus_token``), ``X-Scope-OrgID`` (``prometheus_org_id``),
+    and ``X-Portakal-Token`` (``prometheus_portakal_token``). Any field left unset simply omits
+    its header, so a plain single-tenant Prometheus still works.
+    """
     token = settings.prometheus_token.get_secret_value() if settings.prometheus_token else None
-    return PrometheusClient(settings.prometheus_url, token=token)
+    extra_headers: dict[str, str] = {}
+    if settings.prometheus_portakal_token:
+        extra_headers["X-Portakal-Token"] = settings.prometheus_portakal_token.get_secret_value()
+    return PrometheusClient(
+        settings.prometheus_url,
+        token=token,
+        org_id=settings.prometheus_org_id,
+        extra_headers=extra_headers or None,
+    )
 
 
 __all__ = ["MetricData", "PrometheusClient", "PrometheusResponse", "build_prometheus_client"]

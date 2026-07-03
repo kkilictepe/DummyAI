@@ -331,6 +331,11 @@ Secret (`.env` only — see [`backend/.env.example`](../../backend/.env.example)
 - `OPENAI_API_KEY` (required — without it the graph is not compiled and `POST /copilot` returns
   **503**)
 - `PROMETHEUS_URL` / `PROMETHEUS_TOKEN`, `ELASTICSEARCH_HOSTS` / `ELASTICSEARCH_API_KEY`
+  - The SAP Prometheus sits behind a **Portakal** proxy that requires three headers **together**
+    (any one missing → **401**): `Authorization: Bearer` (`PROMETHEUS_TOKEN`), `X-Scope-OrgID`
+    (`PROMETHEUS_ORG_ID`), and `X-Portakal-Token` (`PROMETHEUS_PORTAKAL_TOKEN`). `PROMETHEUS_URL`
+    must include the proxy path prefix (e.g. `…:4040/portakal`). A plain single-tenant Prometheus
+    needs only `PROMETHEUS_URL`.
 - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL` (tracing; optional)
 
 Env overrides YAML; nested keys use `SECTION__KEY` (e.g. `LLM__ANSWER_MODEL`).

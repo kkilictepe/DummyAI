@@ -113,6 +113,11 @@ class Settings(BaseSettings):
     # --- Prometheus (hosts are not secret; token is) ---
     prometheus_url: str = "http://localhost:9090"
     prometheus_token: SecretStr | None = None
+    # Multi-tenant gateway auth (Cortex/Mimir-style + the Portakal proxy in front of the SAP
+    # Prometheus). ``prometheus_org_id`` -> ``X-Scope-OrgID`` header; ``prometheus_portakal_token``
+    # -> ``X-Portakal-Token`` header. Both optional: a plain single-tenant Prometheus needs neither.
+    prometheus_org_id: str | None = None
+    prometheus_portakal_token: SecretStr | None = None
 
     # --- Elasticsearch (hosts not secret; api key is) ---
     elasticsearch_hosts: str = "http://localhost:9200"

@@ -251,3 +251,43 @@ def test_build_prometheus_client_without_token(token: str | None) -> None:
     settings = Settings(prometheus_url="http://p.internal:9090", prometheus_token=token)
     client = build_prometheus_client(settings)
     assert "authorization" not in client._client.headers
+
+
+def test_build_prometheus_client_sets_gateway_headers() -> None:
+    # The Portakal-fronted SAP Prometheus needs all three headers together (each alone -> 401).
+    settings = Settings(
+        prometheus_url="http://45.130.14.251:4040/portakal",
+        prometheus_token="bearer-abc",
+        prometheus_org_id="aksaray",
+        prometheus_portakal_token="portakal-xyz",
+    )
+    client = build_prometheus_client(settings)
+    headers = client._client.headers
+    assert headers.get("authorization") == "Bearer bearer-abc"
+    assert headers.get("x-scope-orgid") == "aksaray"
+    assert headers.get("x-portakal-token") == "portakal-xyz"
+
+
+def test_build_prometheus_client_omits_unset_gateway_headers() -> None:
+    # A plain single-tenant Prometheus (no org id / portakal token) must not gain empty headers.
+    settings = Settings(prometheus_url="http://p.internal:9090", prometheus_token="tok")
+    client = build_prometheus_client(settings)
+    assert "x-scope-orgid" not in client._client.headers
+    assert "x-portakal-token" not in client._client.headers
+
+
+@respx.mock
+async def test_extra_headers_are_sent_on_requests() -> None:
+    # extra_headers reach the wire on every query, not just at construction.
+    route = respx.get(f"{BASE}/api/v1/query").mock(
+        return_value=httpx.Response(200, json=_EMPTY_VECTOR)
+    )
+    client = PrometheusClient(
+        BASE, token="t", org_id="aksaray", extra_headers={"X-Portakal-Token": "pk"}
+    )
+    await client.instant_query("up")
+    await client.aclose()
+    sent = route.calls.last.request.headers
+    assert sent["authorization"] == "Bearer t"
+    assert sent["x-scope-orgid"] == "aksaray"
+    assert sent["x-portakal-token"] == "pk"
