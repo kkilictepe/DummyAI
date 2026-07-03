@@ -4,7 +4,7 @@ Both the answering agent and the guardrail build a ``ChatOpenAI`` the same way, 
 provider-specific knowledge lives here in one place — in particular the GPT-5 / o-series
 **reasoning model** handling:
 
-* ``reasoning_effort`` (``'minimal' | 'low' | 'medium' | 'high'``) is a *reasoning-model-only*
+* ``reasoning_effort`` (``'none' | 'low' | 'medium' | 'high' | 'xhigh'``) is a *reasoning-model-only*
   parameter. Sending it to a non-reasoning model (e.g. ``gpt-4o``) is a 400, so we only forward it
   when the target model is a reasoning model.
 * A custom ``temperature`` is **ignored** by gpt-5 (non-chat) / o1 models — ``langchain-openai``

@@ -10,9 +10,9 @@ npm install
 npm run dev            # Vite dev server, http://localhost:5173
 npm run build          # tsc -b && vite build
 npm run preview
-npm run lint           # eslint
-npm run test           # vitest (watch);  npx vitest run  for CI
-npx tsc --noEmit       # type-check
+npm run lint           # oxlint (create-vite default; fast, includes react-hooks rules)
+npm run test           # vitest (watch);  npm run test:run  (or npx vitest run) for CI
+npx tsc -b             # type-check (project references; also runs as part of build)
 ```
 
 ## Layout (feature-based)

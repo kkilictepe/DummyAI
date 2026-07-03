@@ -31,9 +31,9 @@ def test_config_yaml_is_loaded() -> None:
 
 def test_llm_reasoning_effort_and_budget_from_yaml() -> None:
     s = get_settings()
-    # gpt-5.5 answerer reasons at its default depth; the guard runs 'minimal' for a snap verdict.
+    # gpt-5.5 answerer reasons at its default depth; the guard runs 'none' for a snap verdict.
     assert s.llm.answer_reasoning_effort is None
-    assert s.llm.guard_reasoning_effort == "minimal"
+    assert s.llm.guard_reasoning_effort == "none"
     # max_completion_tokens budget leaves headroom for reasoning + a full Markdown answer.
     assert s.llm.max_tokens == 8192
 
