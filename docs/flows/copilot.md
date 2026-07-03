@@ -1,7 +1,8 @@
 # Copilot flow
 
-> **Status:** implemented (backend). Frontend `/copilot` page: pending.
+> **Status:** implemented (backend + frontend).
 > **Endpoint:** `POST /copilot` (AG-UI SSE) · **Graph:** [`backend/src/flow/copilot.py`](../../backend/src/flow/copilot.py) · **Flow/agent name:** `copilot`
+> **UI:** [`frontend/src/features/copilot/`](../../frontend/src/features/copilot/) · route `/copilot` (see [Frontend](#frontend-rasyona-ui))
 
 The Copilot is the chatbot flow: an SAP Basis operator asks natural-language questions about the
 ~20 monitored SAP systems (health, performance, errors, availability, configuration status) and an
@@ -189,6 +190,63 @@ logged server-side (may carry internal hostnames / upstream bodies) and never se
 
 SSE headers disable caching + proxy buffering (`Cache-Control: no-cache`, `X-Accel-Buffering: no`)
 so frames flush immediately.
+
+---
+
+## Frontend (Rasyona UI)
+
+The `/copilot` page is a streaming chat in the **Rasyona** app shell (Vite + React + TypeScript,
+Ant Design v5, dark-first). It consumes this endpoint directly via the AG-UI TS SDK
+(`@ag-ui/client`, exact-pinned) — no CopilotKit; the chat UI is custom. The **route path mirrors the
+endpoint path** and the flow name matches on both sides.
+
+- **App shell** — [`frontend/src/app/`](../../frontend/src/app/): header wordmark "Rasyona", a
+  left menu driven by a single flows registry ([`app/flows.tsx`](../../frontend/src/app/flows.tsx))
+  with Copilot first and the other flows shown as a "Coming soon" roadmap. `/` redirects to
+  `/copilot`. Theme tokens live in [`app/theme.ts`](../../frontend/src/app/theme.ts).
+- **SDK seam** — components never import the SDK directly; [`lib/agui.ts`](../../frontend/src/lib/agui.ts)
+  exposes `createFlowAgent('/copilot')` (an `HttpAgent`) and re-exports the SDK types. Backend bases
+  come only from [`lib/env.ts`](../../frontend/src/lib/env.ts) (`VITE_AGUI_BASE_URL`, `VITE_API_URL`).
+- **State machine** — [`hooks/useCopilotAgent.ts`](../../frontend/src/features/copilot/hooks/useCopilotAgent.ts)
+  subscribes to the agent and maps the AG-UI event families to view state. Contract details it
+  relies on: **stateless replay** (the full message history is POSTed each turn; `threadId` only
+  groups traces); a guardrail refusal is a **normal** run (no error UI); `RUN_ERROR` is terminal and
+  may arrive mid-message (the open message is flagged *interrupted*); a `503` maps to a
+  "service not configured" message; a user **Stop** aborts the run and flags the message partial
+  (no error banner). Emissions from a superseded agent (after **New conversation**) are fenced out
+  so they can't corrupt the fresh conversation.
+- **Tool timeline** — the signature element. Each `TOOL_CALL_*` renders as an inspectable step
+  (friendly label + spinner → check) whose body shows the exact args/result JSON, so an operator can
+  audit what the agent did. Tool names map to labels in
+  [`features/copilot/types.ts`](../../frontend/src/features/copilot/types.ts).
+- **Markdown** — assistant answers render through
+  [`components/MarkdownContent.tsx`](../../frontend/src/components/MarkdownContent.tsx) with GFM
+  (tables/code). **No `rehype-raw`**, so any raw HTML in a model answer is inert text (XSS-safe);
+  links open in a new tab with `noopener`.
+- **Dev transport** — Vite proxies `/agui/*` → backend `/*` (SSE-safe: `accept-encoding: identity`,
+  no proxy timeout) and `/api/*` → backend `/*`. The `/agui` prefix keeps SPA route GETs (a refresh
+  on `/copilot`) out of the proxy. In production, set absolute `VITE_*` URLs **and** add the origin to
+  `cors.allow_origins`, or replicate the rewrites in a reverse proxy.
+- **Tests** — Vitest + React Testing Library + MSW-mocked SSE (48 tests). The wire fixtures in
+  `frontend/src/test/aguiEvents.ts` mirror the sequences in
+  [`tests/agui/test_copilot_endpoint_sse.py`](../../backend/tests/agui/test_copilot_endpoint_sse.py).
+
+### Live verification checklist (needs the backend running with an LLM key)
+
+Run `uv run uvicorn src.main:app --reload --port 8000` (from `backend/`) and `npm run dev` (from
+`frontend/`), then at `http://localhost:5173/copilot`:
+
+1. "Which SAP systems do you monitor?" → a **Listing SAP systems** tool step pulses, then a streamed
+   answer; expand the step to see args/result JSON.
+2. A metric question (e.g. "Any high CPU on KHP in the last hour?") → Prometheus tool step(s) → a
+   Markdown table renders.
+3. An off-topic question → the guardrail refusal streams as a normal message (no error UI).
+4. **Stop** mid-answer → the message shows an *interrupted* tag, no error banner. **New conversation**
+   → empty state returns.
+5. Backend stopped → send → a transport-error alert. Backend without the LLM key → the
+   "service not configured" message.
+6. DevTools ▸ Network: a single POST to `/agui/copilot`, events arriving **incrementally** (not all at
+   once at the end — that would indicate proxy buffering).
 
 ---
 
