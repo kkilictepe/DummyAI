@@ -159,9 +159,10 @@ upper-cased to the catalog's canonical casing, matching the `system_id.upper()` 
 ids are **dropped** (logged). Case-insensitive matching matters for safety, not just ergonomics: a
 mistyped `khp` must resolve to `KHP` rather than being dropped and silently widening scope to *all*
 systems. This is a security boundary: untrusted `context`/`state` cannot smuggle arbitrary text into
-the answering agent's trusted system prompt via the scope channel. The resolved list is injected into graph state,
-reaches the agent subgraph's `CopilotAgentState`, and a `dynamic_prompt` middleware appends the
-scope line to the committed base prompt at invoke time.
+the answering agent's trusted system prompt via the scope channel. The base prompt lives in
+[`backend/src/prompts/copilot.py`](../../backend/src/prompts/copilot.py). The resolved list is
+injected into graph state, reaches the agent subgraph's `CopilotAgentState`, and a
+`dynamic_prompt` middleware appends the scope line to the committed base prompt at invoke time.
 
 ---
 
@@ -278,7 +279,7 @@ Run `uv run uvicorn src.main:app --reload --port 8000` (from `backend/`) and `np
 Non-secret ([`backend/config/config.yaml`](../../backend/config/config.yaml)):
 
 - `llm.answer_model`, `llm.guard_model`, `llm.temperature`, `llm.max_tokens`
-- `copilot.system_prompt`, `copilot.max_tool_iterations`
+- `copilot.max_tool_iterations`
 - `cors.allow_origins` (Vite dev origin), `elasticsearch.index_name`
 
 Secret (`.env` only — see [`backend/.env.example`](../../backend/.env.example)):
@@ -334,6 +335,7 @@ Manual smoke test against a live server + real model:
 |---------|------|
 | Graph wiring | [`backend/src/flow/copilot.py`](../../backend/src/flow/copilot.py) |
 | Answering agent | [`backend/src/agents/copilot_agent.py`](../../backend/src/agents/copilot_agent.py) |
+| Answering prompt | [`backend/src/prompts/copilot.py`](../../backend/src/prompts/copilot.py) |
 | Guardrail | [`backend/src/agents/guardrail.py`](../../backend/src/agents/guardrail.py) |
 | AG-UI SSE driver | [`backend/src/agui/runner.py`](../../backend/src/agui/runner.py) |
 | Endpoint (`POST /copilot`) | [`backend/src/main.py`](../../backend/src/main.py) |

@@ -24,9 +24,9 @@ def test_config_yaml_is_loaded() -> None:
     # Values come from config/config.yaml, not hardcoded defaults only.
     assert s.llm.answer_model == "gpt-5.5"
     assert s.llm.guard_model == "gpt-5.4-mini"
+    assert s.copilot.max_tool_iterations == 16
     assert "http://localhost:5173" in s.cors.allow_origins
     assert s.elasticsearch.index_name == "sap-logs-*"
-    assert "Markdown" in s.copilot.system_prompt
 
 
 def test_llm_reasoning_effort_and_budget_from_yaml() -> None:

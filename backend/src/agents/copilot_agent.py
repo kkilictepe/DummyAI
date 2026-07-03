@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentState, dynamic_prompt
 
+from src.prompts.copilot import COPILOT_SYSTEM_PROMPT
+
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
     from langgraph.graph.state import CompiledStateGraph
@@ -56,12 +58,10 @@ def build_copilot_agent(
         reasoning_effort=settings.llm.answer_reasoning_effort,
     )
 
-    base_prompt = settings.copilot.system_prompt
-
     @dynamic_prompt
     def scoped_prompt(request: Any) -> str:
         system_ids = request.state.get("system_ids")
-        return f"{base_prompt}\n\n{_scope_line(system_ids)}"
+        return f"{COPILOT_SYSTEM_PROMPT}\n\n{_scope_line(system_ids)}"
 
     return create_agent(
         model=model,

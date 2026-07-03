@@ -78,10 +78,6 @@ class CopilotSettings(BaseModel):
     """Copilot flow behaviour."""
 
     max_tool_iterations: int = 8
-    system_prompt: str = (
-        "You are Dummy AI, an SAP Basis operations copilot. Answer in Markdown, grounding "
-        "every operational claim in tool data."
-    )
 
 
 class CorsSettings(BaseModel):
