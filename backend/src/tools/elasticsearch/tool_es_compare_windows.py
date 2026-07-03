@@ -349,6 +349,7 @@ async def _run_compare_windows(
     if filter_must_dict:
         field_err = validate_field_filters(filter_must_dict, profile)
         if field_err is not None:
+            _log.warning("es_compare_windows_invalid_field_filter", system_id=system_id)
             return json.dumps(dict(field_err), default=str)
 
     try:

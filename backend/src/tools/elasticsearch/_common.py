@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import json
 
+from src.logging import get_logger
 from src.tools.elasticsearch.shared.profiles import LogInvestigationProfile, get_profile
 from src.tools.elasticsearch.shared.system_type import resolve_system_type
+
+_log = get_logger(__name__)
 
 
 def resolve_profile(system_id: str | None, system_type: str | None) -> LogInvestigationProfile:
@@ -21,6 +24,14 @@ def resolve_profile(system_id: str | None, system_type: str | None) -> LogInvest
 
 def invalid_request(reason: str, *, suggestion: str | None = None, **extra: object) -> str:
     """Serialize a structured ``invalid_request`` result (safe to show the user verbatim)."""
+    # Central log for every tool that rejects a malformed/invalid agent request (all six ES tools
+    # route their invalid_request early-returns through here). Only compact scalar context is
+    # logged — reason is a generic validation message; extra carries system_id/details, no body.
+    _log.warning(
+        "es_tool_invalid_request",
+        reason=reason,
+        **{k: v for k, v in extra.items() if isinstance(v, str | int | float | bool)},
+    )
     payload: dict[str, object] = {"status": "invalid_request", "reason": reason}
     if suggestion is not None:
         payload["suggestion"] = suggestion

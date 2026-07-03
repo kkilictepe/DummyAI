@@ -20,9 +20,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.logging import get_logger
+
 if TYPE_CHECKING:
     from langchain_openai import ChatOpenAI
     from pydantic import SecretStr
+
+_log = get_logger(__name__)
 
 
 def is_reasoning_model(model: str) -> bool:
@@ -56,6 +60,13 @@ def build_chat_openai(
         kwargs["max_tokens"] = max_tokens
     if reasoning_effort is not None and is_reasoning_model(model):
         kwargs["reasoning_effort"] = reasoning_effort
+    _log.debug(
+        "chat_model_built",
+        model=model,
+        reasoning_effort=kwargs.get("reasoning_effort"),
+        has_temperature="temperature" in kwargs,
+        has_max_tokens="max_tokens" in kwargs,
+    )
     return ChatOpenAI(**kwargs)
 
 

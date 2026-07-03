@@ -10,6 +10,10 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime, timedelta
 
+from src.logging import get_logger
+
+_log = get_logger(__name__)
+
 _RELATIVE_RE = re.compile(r"(\d+)\s*([mhdw])")
 
 
@@ -90,6 +94,7 @@ def parse_time_range(time_range: str, *, now: datetime | None = None) -> tuple[d
             from_time = parse_iso_utc(parts[0])
             to_time = parse_iso_utc(parts[1])
         except ValueError as exc:
+            _log.warning("time_range_iso_parse_failed", time_range=time_range, error=str(exc))
             raise ValueError(
                 f"Invalid time_range format: '{time_range}'. "
                 f"ISO pair could not be parsed: {exc}. Expected "
@@ -105,6 +110,7 @@ def parse_time_range(time_range: str, *, now: datetime | None = None) -> tuple[d
     try:
         return parse_relative_time_range(stripped, now=now)
     except ValueError as exc:
+        _log.warning("time_range_relative_parse_failed", time_range=time_range, error=str(exc))
         raise ValueError(
             f"Invalid time_range format: '{time_range}'. "
             "Expected a relative duration like '3h', '24h', '7d', '30m', '1w', "

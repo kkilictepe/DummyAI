@@ -12,7 +12,10 @@ import math
 from typing import Any
 
 from src.clients.prometheus import MetricData
+from src.logging import get_logger
 from src.tools._catalog import MetricCatalog
+
+_log = get_logger(__name__)
 
 
 def percentile(values_sorted: list[float], p: float) -> float:
@@ -148,7 +151,13 @@ def detect_anomalies(
             continue
         try:
             threshold = float(threshold_str)  # type: ignore[arg-type]
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            _log.warning(
+                "anomaly_threshold_unparsable",
+                metric=key,
+                threshold=threshold_str,
+                error=str(exc),
+            )
             continue
 
         if current > threshold:

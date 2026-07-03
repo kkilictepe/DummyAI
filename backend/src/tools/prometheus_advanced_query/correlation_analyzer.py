@@ -276,7 +276,8 @@ class CorrelationAnalyzer:
             dt0 = datetime.fromisoformat(series[0].timestamp.replace("Z", "+00:00"))
             dt1 = datetime.fromisoformat(series[1].timestamp.replace("Z", "+00:00"))
             return int(abs((dt1 - dt0).total_seconds()))
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError) as exc:
+            _log.debug("correlation_step_estimate_failed", error=str(exc))
             return 0
 
     def _classify_strength(self, coefficient: float) -> CorrelationStrength:

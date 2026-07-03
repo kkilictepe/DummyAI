@@ -356,6 +356,26 @@ Langfuse v4: `CallbackHandler` is attached to the graph run and the turn is wrap
 runs per turn (in `finally`) and on shutdown so async delivery doesn't drop traces. Tracing is
 best-effort — a Langfuse failure never breaks a turn.
 
+### Observability & logging
+
+Logging is **structlog** ([`backend/src/logging.py`](../../backend/src/logging.py)): a JSON renderer
+in `production` and a human console renderer otherwise, filtered to the configured `log_level`. Every
+log line auto-merges the current request's `request_id` via `structlog.contextvars`, so all lines for
+one turn correlate.
+
+The `request_id` is bound by `RequestIdMiddleware`, a **pure-ASGI** middleware (deliberately *not*
+Starlette's `BaseHTTPMiddleware`, which buffers streaming responses and would break the SSE stream).
+It reuses an inbound `x-request-id` or mints a UUID, binds it to the log context, and echoes it back
+in the `x-request-id` response header — so a client can quote the header to pull the exact
+server-side logs for a run. `run_copilot_stream` threads the same id through its `copilot_run_start`
+/ `copilot_run_failed` events.
+
+Error-handling contract: failures are logged server-side with the **real** exception via event-first
+structlog events (`copilot_run_failed` in the driver; `prometheus_query_failed`,
+`elasticsearch_request_failed` at the client boundary), while the client receives only a **generic**
+message — a terminal `RUN_ERROR` for the stream, a leak-free string for tool results. Secrets, raw
+upstream bodies, and internal hostnames are never sent to the browser.
+
 ---
 
 ## Tests

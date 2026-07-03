@@ -19,8 +19,12 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from src.logging import get_logger
+
 if TYPE_CHECKING:
     from src.config import Settings
+
+_log = get_logger(__name__)
 
 # Prometheus accepts the query in the URL (GET) or form-encoded (POST). Long PromQL blows past
 # proxy/server URL length limits, so switch to POST once the query grows past this many chars.
@@ -129,13 +133,28 @@ class PrometheusClient:
         params = {"match[]": match} if match else None
         try:
             response = await self._client.get(f"/api/v1/label/{label}/values", params=params)
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            _log.warning("prometheus_label_values_failed", label=label, error=str(exc))
             return []
         try:
             data = response.json()
-        except ValueError:
+        except ValueError as exc:
+            _log.warning(
+                "prometheus_label_values_failed",
+                label=label,
+                reason="parse_error",
+                http_status=response.status_code,
+                error=str(exc),
+            )
             return []
         if data.get("status") != "success":
+            _log.warning(
+                "prometheus_label_values_failed",
+                label=label,
+                reason="status_not_success",
+                error_type=data.get("errorType"),
+                http_status=response.status_code,
+            )
             return []
         values = data.get("data", [])
         return list(values) if isinstance(values, list) else []
@@ -162,6 +181,7 @@ class PrometheusClient:
         out: dict[str, PrometheusResponse] = {}
         for item in results:
             if isinstance(item, BaseException):
+                _log.warning("prometheus_query_dropped", error=str(item))
                 continue
             name, resp = item
             out[name] = resp
@@ -210,6 +230,7 @@ class PrometheusClient:
     async def _execute_query(self, endpoint: str, params: dict[str, Any]) -> PrometheusResponse:
         query = str(params.get("query", ""))
         use_post = len(query) > _POST_QUERY_THRESHOLD
+        _log.debug("prometheus_query", endpoint=endpoint, method="POST" if use_post else "GET")
         start = perf_counter()
         try:
             if use_post:
@@ -217,6 +238,12 @@ class PrometheusClient:
             else:
                 response = await self._client.get(endpoint, params=params)
         except httpx.HTTPError as exc:
+            _log.warning(
+                "prometheus_query_failed",
+                endpoint=endpoint,
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
             return PrometheusResponse(
                 success=False,
                 error_type=type(exc).__name__,
@@ -229,6 +256,11 @@ class PrometheusClient:
         try:
             data = response.json()
         except ValueError as exc:
+            _log.warning(
+                "prometheus_response_parse_failed",
+                http_status=response.status_code,
+                error=str(exc),
+            )
             return PrometheusResponse(
                 success=False,
                 error_type="parse_error",
@@ -249,6 +281,11 @@ class PrometheusClient:
             )
 
         # Prometheus reports PromQL/param errors as a JSON body with status="error".
+        _log.warning(
+            "prometheus_query_returned_error",
+            error_type=data.get("errorType"),
+            http_status=response.status_code,
+        )
         return PrometheusResponse(
             success=False,
             error_type=data.get("errorType", "unknown"),

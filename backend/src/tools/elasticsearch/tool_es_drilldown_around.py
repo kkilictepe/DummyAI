@@ -137,6 +137,11 @@ async def _run_drilldown_around(
             anchor_raw = await es.search(index=default_idx, body=anchor_body)
             anchor_hits = (anchor_raw.get("hits") or {}).get("hits") or []
             if not anchor_hits:
+                _log.warning(
+                    "es_drilldown_anchor_not_found",
+                    system_id=system_id,
+                    anchor_doc_id=anchor_doc_id,
+                )
                 return json.dumps(
                     {
                         "status": "anchor_not_found",

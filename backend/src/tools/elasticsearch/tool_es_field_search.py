@@ -105,6 +105,7 @@ async def _run_field_search(
     profile = resolve_profile(system_id, system_type)
     field_err = validate_field_filters(must_match_dict, profile)
     if field_err is not None:
+        _log.warning("es_field_search_invalid_field_filter", system_id=system_id)
         return json.dumps(dict(field_err), default=str)
 
     # Govern the output projection too: fields_to_return is streamed to the browser, so a caller
@@ -112,6 +113,7 @@ async def _run_field_search(
     # arbitrary _source fields. Reject unknown projections before any query reaches Elasticsearch.
     projection_err = validate_projection_fields(fields_to_return, profile)
     if projection_err is not None:
+        _log.warning("es_field_search_invalid_projection", system_id=system_id)
         return json.dumps(dict(projection_err), default=str)
 
     try:

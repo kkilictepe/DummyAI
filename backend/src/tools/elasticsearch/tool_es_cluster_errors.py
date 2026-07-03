@@ -119,6 +119,7 @@ async def _run_cluster_errors(
     if must_match_dict:
         field_err = validate_field_filters(must_match_dict, profile)
         if field_err is not None:
+            _log.warning("es_cluster_errors_invalid_field_filter", system_id=system_id)
             return json.dumps(dict(field_err), default=str)
 
     try:

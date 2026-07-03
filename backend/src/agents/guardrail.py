@@ -103,6 +103,7 @@ def make_guardrail_node(
     async def guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
         user_text = _latest_user_text(state.get("messages", []))
         if not user_text:
+            _log.debug("guardrail_no_user_text")
             verdict = GuardrailVerdict(
                 allowed=False,
                 category="off_topic",

@@ -11,7 +11,10 @@ import json
 from collections.abc import Callable, Collection
 from typing import Any, Literal
 
+from src.logging import get_logger
 from src.tools.elasticsearch.shared.profiles.base import LogInvestigationProfile
+
+_log = get_logger(__name__)
 
 
 def coerce_json_object_arg(value: Any, field_name: str) -> dict[str, Any] | str:
@@ -35,8 +38,10 @@ def coerce_json_object_arg(value: Any, field_name: str) -> dict[str, Any] | str:
         try:
             parsed = json.loads(value)
         except json.JSONDecodeError as exc:
+            _log.warning("json_object_arg_parse_failed", field=field_name, error=str(exc))
             return f"__parse_error__:{exc}"
         if not isinstance(parsed, dict):
+            _log.warning("json_object_arg_not_object", field=field_name)
             return f"__parse_error__:{field_name} JSON must decode to an object"
         return parsed
     return f"__parse_error__:{field_name} must be a JSON object string"

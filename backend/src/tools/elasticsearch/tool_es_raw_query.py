@@ -219,8 +219,19 @@ async def _run_raw_query(
             try:
                 parsed_dsl = json.loads(query_dsl)
             except json.JSONDecodeError as exc:
+                _log.warning(
+                    "es_raw_query_rejected",
+                    system_id=system_id,
+                    policy="malformed_query_dsl",
+                    error=str(exc),
+                )
                 return _rejection("malformed_query_dsl", f"query_dsl must be valid JSON: {exc}")
             if not isinstance(parsed_dsl, dict | list):
+                _log.warning(
+                    "es_raw_query_rejected",
+                    system_id=system_id,
+                    policy="malformed_query_dsl",
+                )
                 return _rejection(
                     "malformed_query_dsl", "query_dsl JSON must decode to an object or array."
                 )
@@ -228,6 +239,14 @@ async def _run_raw_query(
 
         rejection = _check_safety_envelope(query_dsl, endpoint, explicit_high_volume)
         if rejection is not None:
+            # rejection is a compact {status,policy,details} JSON string built from the tool's own
+            # fixed policy vocabulary (no ES data / secrets) — safe to log verbatim for audit.
+            _log.warning(
+                "es_raw_query_rejected",
+                system_id=system_id,
+                endpoint=endpoint,
+                rejection=rejection,
+            )
             return rejection
 
         index_name = index_override or es.default_index
